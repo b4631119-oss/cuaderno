@@ -7,5 +7,5 @@ export default function Home() {
 
   if (!opened) return <Cover onOpen={() => setOpened(true)} />;
 
-  return <div>.</div>;
+  return <div>что то</div>;
 }

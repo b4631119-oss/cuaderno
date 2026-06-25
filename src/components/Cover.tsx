@@ -25,81 +25,85 @@ export default function Cover({ onOpen }: CoverProps) {
   const color = COLORS[colorIdx];
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-neutral-100 px-4 py-8">
+    // Внешний контейнер: занимает весь экран, убираем padding
+    <div className="min-h-screen w-full flex items-center justify-center bg-neutral-200">
+      
+      {/* Обложка: 
+          w-full h-full - занимает весь экран
+          Убрали p-4, max-w, aspect
+          rounded-r-xl -> rounded-none (теперь тетрадь на весь экран)
+          Корректировка теней: shadow-inner + shadow-lg по краям
+      */}
       <div
-        className="relative w-[320px] min-h-[440px] border-2 rounded-sm flex flex-col items-center px-9 pt-11 pb-9"
+        className="relative w-full h-screen border-l-8 border-y-2 border-r-2 rounded-none shadow-[inner_0_0_20px_rgba(0,0,0,0.1),_0_0_30px_rgba(0,0,0,0.2)] flex flex-col items-center justify-center p-8 md:p-12 transition-colors duration-300"
         style={{ background: color.bg, borderColor: color.border }}
       >
-        {/* Кнопка палитры */}
+        {/* Кнопка палитры - перемещена в верхний правый угол с padding */}
         <button
-          className="absolute top-3 right-3 text-lg opacity-70 hover:opacity-100 transition-opacity"
+          className="absolute top-6 right-6 text-2xl md:text-3xl hover:scale-110 transition-transform"
           style={{ color: color.text }}
           onClick={() => setShowPalette((p) => !p)}
-          aria-label="Изменить цвет обложки"
         >
           🎨
         </button>
 
-        {/* Выбор цвета */}
+        {/* Выбор цвета: адаптивный, по центру над тетрадью */}
         {showPalette && (
-          <div className="flex gap-2 flex-wrap justify-center mb-4">
+          <div className="absolute top-16 right-6 md:top-24 md:right-12 flex flex-row gap-3 p-3 bg-white/95 rounded-full shadow-xl">
             {COLORS.map((c, i) => (
               <button
                 key={i}
-                className="w-5 h-5 rounded-full border-2 transition-transform hover:scale-110"
+                className="w-8 h-8 md:w-10 md:h-10 rounded-full border-2 transition-transform hover:scale-110"
                 style={{
                   background: c.bg,
-                  borderColor: i === colorIdx ? color.text : "transparent",
-                  transform: i === colorIdx ? "scale(1.15)" : undefined,
+                  borderColor: i === colorIdx ? "#000" : "transparent",
                 }}
                 onClick={() => {
                   setColorIdx(i);
                   setShowPalette(false);
                 }}
-                aria-label={c.label}
               />
             ))}
           </div>
         )}
 
-        {/* Заголовок */}
+        {/* Заголовок: адаптивный, крупнее на больших экранах */}
         <h1
-          className="text-xl font-medium tracking-[4px] uppercase mb-12 text-center"
+          className="text-4xl md:text-5xl font-extrabold tracking-[8px] md:tracking-[12px] uppercase mb-20 md:mb-28 text-center"
           style={{ color: color.text }}
         >
           ТЕТРАДЬ
         </h1>
 
-        {/* Поля */}
-        <div className="w-full flex flex-col gap-6">
+        {/* Поля: Flexbox центрирование и адаптивная ширина */}
+        <div className="w-full max-w-[320px] md:max-w-[480px] flex flex-col gap-10 md:gap-12">
           {[
             { label: "для", value: subject, onChange: setSubject },
             { label: "имя", value: firstName, onChange: setFirstName },
             { label: "фамилия", value: lastName, onChange: setLastName },
           ].map(({ label, value, onChange }) => (
-            <div key={label} className="flex items-end gap-2">
-              <span className="text-[13px] pb-0.5 whitespace-nowrap" style={{ color: color.text }}>
-                {label}
+            <div key={label} className="flex items-end gap-4 md:gap-6">
+              <span className="text-base md:text-lg font-semibold uppercase whitespace-nowrap" style={{ color: color.text }}>
+                {label}:
               </span>
               <input
                 type="text"
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
-                maxLength={40}
-                className="flex-1 bg-transparent border-0 border-b outline-none text-[13px] pb-0.5 rounded-none"
+                className="flex-1 bg-transparent border-0 border-b-2 outline-none text-xl md:text-2xl pb-1.5 md:pb-2 font-mono tracking-wide"
                 style={{ borderBottomColor: color.border, color: color.text }}
               />
             </div>
           ))}
         </div>
 
-        {/* Кнопка открыть */}
+        {/* Кнопка "Открыть": адаптивная ширина, крупнее, прижата к низу */}
         <button
-          className="mt-auto w-full border rounded-md py-2.5 text-sm tracking-wide mt-12 hover:opacity-70 transition-opacity"
-          style={{ borderColor: color.border, color: color.text }}
+          className="mt-20 md:mt-28 w-full max-w-[320px] md:max-w-[400px] border-l-8 border-r-2 border-y-2 rounded py-4 md:py-5 text-base md:text-lg uppercase tracking-widest font-bold hover:bg-black/5 transition-all active:scale-[0.98]"
+          style={{ borderColor: color.border, color: color.text, transitionProperty: "background, border, color, transform" }}
           onClick={onOpen}
         >
-          открыть тетрадь →
+          Открыть тетрадь →
         </button>
       </div>
     </div>

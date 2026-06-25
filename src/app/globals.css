@@ -1,2 +1,18 @@
 @import "tailwindcss";
 
+.dog-ear {
+  position: relative;
+}
+.dog-ear::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  border-style: solid;
+  border-width: 0 40px 40px 0;
+  border-color: transparent #d1d5db transparent transparent; /* цвет "обратной стороны" */
+  transition: border-width 0.3s;
+}
+.dog-ear:hover::before {
+  border-width: 0 80px 80px 0; /* эффект разворачивания при наведении */
+}
