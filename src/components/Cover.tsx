@@ -22,7 +22,6 @@ export default function Cover({ onOpen }: CoverProps) {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
 
-  // Фото: либо загруженный файл (base64), либо ссылка
   const [bgImage, setBgImage] = useState<string | null>(null);
   const [urlInput, setUrlInput] = useState("");
   const [showUrlInput, setShowUrlInput] = useState(false);
@@ -31,7 +30,6 @@ export default function Cover({ onOpen }: CoverProps) {
 
   const color = COLORS[colorIdx];
 
-  // Стиль фона обложки: фото или цвет
   const coverStyle = bgImage
     ? {
         backgroundImage: `url(${bgImage})`,
@@ -41,12 +39,10 @@ export default function Cover({ onOpen }: CoverProps) {
       }
     : { background: color.bg, borderColor: color.border };
 
-  // Цвет текста: на фото — белый с тенью, на цвете — родной
   const textColor = bgImage ? "#ffffff" : color.text;
   const textShadow = bgImage ? "0 1px 4px rgba(0,0,0,0.6)" : undefined;
   const borderColor = bgImage ? "rgba(255,255,255,0.7)" : color.border;
 
-  // Загрузка файла → base64
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -58,11 +54,9 @@ export default function Cover({ onOpen }: CoverProps) {
     reader.readAsDataURL(file);
   }
 
-  // Применить ссылку
   function applyUrl() {
     const url = urlInput.trim();
     if (!url) return;
-    // Простая проверка что это похоже на ссылку
     if (!url.startsWith("http")) {
       setUrlError(true);
       return;
@@ -74,7 +68,6 @@ export default function Cover({ onOpen }: CoverProps) {
     setShowPalette(false);
   }
 
-  // Сбросить фото
   function resetBg() {
     setBgImage(null);
     setUrlInput("");
@@ -87,20 +80,26 @@ export default function Cover({ onOpen }: CoverProps) {
       <div
         className="relative w-full h-screen border-l-8 border-y-2 border-r-2 rounded-none flex flex-col items-center justify-center p-8 md:p-12 transition-all duration-300"
         style={coverStyle}
+        // UX Фикс: клик по обложке закрывает палитру, если она открыта
+        onClick={() => {
+          if (showPalette) {
+            setShowPalette(false);
+            setShowUrlInput(false);
+          }
+        }}
       >
-        {/* Затемнение если есть фото — для читаемости текста */}
         {bgImage && (
           <div className="absolute inset-0 bg-black/30 pointer-events-none" />
         )}
 
-        {/* Всё содержимое поверх затемнения */}
         <div className="relative z-10 w-full flex flex-col items-center">
 
-          {/* Кнопка палитры */}
+          {/* Кнопка палитры с подложкой для лучшего UI на темных фото */}
           <button
-            className="absolute top-0 right-0 text-2xl md:text-3xl hover:scale-110 transition-transform"
+            className="absolute top-0 right-0 text-2xl md:text-3xl hover:scale-110 transition-transform p-2 rounded-full bg-black/5 backdrop-blur-xs"
             style={{ color: textColor }}
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation(); // Чтобы клик не триггерил закрытие обложки
               setShowPalette((p) => !p);
               setShowUrlInput(false);
             }}
@@ -109,11 +108,11 @@ export default function Cover({ onOpen }: CoverProps) {
             🎨
           </button>
 
-          {/* Панель выбора */}
           {showPalette && (
-            <div className="absolute top-10 right-0 flex flex-col gap-3 p-4 bg-white rounded-2xl shadow-xl min-w-[220px] z-20">
-
-              {/* Цвета */}
+            <div 
+              className="absolute top-14 right-0 flex flex-col gap-3 p-4 bg-white rounded-2xl shadow-xl min-w-[220px] z-20"
+              onClick={(e) => e.stopPropagation()} // Чтобы клики внутри панели её не закрывали
+            >
               <p className="text-xs text-neutral-400 uppercase tracking-wider">цвет</p>
               <div className="flex gap-2 flex-wrap">
                 {COLORS.map((c, i) => (
@@ -137,7 +136,6 @@ export default function Cover({ onOpen }: CoverProps) {
               <div className="border-t border-neutral-100 pt-2 flex flex-col gap-2">
                 <p className="text-xs text-neutral-400 uppercase tracking-wider">фото</p>
 
-                {/* Загрузить файл */}
                 <button
                   className="text-sm text-left px-3 py-2 rounded-lg bg-neutral-100 hover:bg-neutral-200 transition-colors"
                   onClick={() => fileRef.current?.click()}
@@ -152,7 +150,6 @@ export default function Cover({ onOpen }: CoverProps) {
                   onChange={handleFile}
                 />
 
-                {/* Вставить ссылку */}
                 <button
                   className="text-sm text-left px-3 py-2 rounded-lg bg-neutral-100 hover:bg-neutral-200 transition-colors"
                   onClick={() => setShowUrlInput((v) => !v)}
@@ -170,10 +167,10 @@ export default function Cover({ onOpen }: CoverProps) {
                         setUrlInput(e.target.value);
                         setUrlError(false);
                       }}
-                      className={`text-sm px-2 py-1.5 border rounded-lg outline-none ${
-                        urlError ? "border-red-400" : "border-neutral-300"
+                      className={`text-sm px-2 py-1.5 border rounded-lg outline-none transition-colors text-black ${
+                        urlError ? "border-red-400" : "border-neutral-300 focus:border-neutral-500"
                       }`}
-                      onKeyDown={(e) => e.key === "Enter" && applyUrl()}
+                      onKeyDown={(e) => e.key === "Enter" &&  applyUrl()}
                     />
                     {urlError && (
                       <p className="text-xs text-red-500">введи корректную ссылку</p>
@@ -187,7 +184,6 @@ export default function Cover({ onOpen }: CoverProps) {
                   </div>
                 )}
 
-                {/* Сбросить фото */}
                 {bgImage && (
                   <button
                     className="text-sm text-red-500 text-left px-3 py-1 hover:underline"
@@ -203,7 +199,6 @@ export default function Cover({ onOpen }: CoverProps) {
             </div>
           )}
 
-          {/* Заголовок */}
           <h1
             className="text-4xl md:text-5xl font-extrabold tracking-[8px] md:tracking-[12px] uppercase mb-20 md:mb-28 text-center mt-8"
             style={{ color: textColor, textShadow }}
@@ -211,7 +206,6 @@ export default function Cover({ onOpen }: CoverProps) {
             ТЕТРАДЬ
           </h1>
 
-          {/* Поля */}
           <div className="w-full max-w-[320px] md:max-w-[480px] flex flex-col gap-10 md:gap-12">
             {[
               { label: "для", value: subject, onChange: setSubject },
@@ -229,14 +223,14 @@ export default function Cover({ onOpen }: CoverProps) {
                   type="text"
                   value={value}
                   onChange={(e) => onChange(e.target.value)}
-                  className="flex-1 bg-transparent border-0 border-b-2 outline-none text-xl md:text-2xl pb-1.5 md:pb-2 font-mono tracking-wide"
+                  // UI Фикс: добавил плавное изменение прозрачности при фокусе
+                  className="flex-1 bg-transparent border-0 border-b-2 outline-none text-xl md:text-2xl pb-1.5 md:pb-2 font-mono tracking-wide transition-all focus:border-opacity-100 border-opacity-60"
                   style={{ borderBottomColor: borderColor, color: textColor, textShadow }}
                 />
               </div>
             ))}
           </div>
 
-          {/* Кнопка открыть */}
           <button
             className="mt-20 md:mt-28 w-full max-w-[320px] md:max-w-[400px] border-l-8 border-r-2 border-y-2 rounded py-4 md:py-5 text-base md:text-lg uppercase tracking-widest font-bold hover:bg-black/10 transition-all active:scale-[0.98]"
             style={{ borderColor, color: textColor, textShadow }}
