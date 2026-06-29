@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 
 const COLORS = [
   { bg: "#8fbc5a", border: "#3B6D11", text: "#173404", label: "зелёный" },
@@ -22,89 +22,229 @@ export default function Cover({ onOpen }: CoverProps) {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
 
+  // Фото: либо загруженный файл (base64), либо ссылка
+  const [bgImage, setBgImage] = useState<string | null>(null);
+  const [urlInput, setUrlInput] = useState("");
+  const [showUrlInput, setShowUrlInput] = useState(false);
+  const [urlError, setUrlError] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
   const color = COLORS[colorIdx];
 
-  return (
-    // Внешний контейнер: занимает весь экран, убираем padding
-    <div className="min-h-screen w-full flex items-center justify-center bg-neutral-200">
-      
-      {/* Обложка: 
-          w-full h-full - занимает весь экран
-          Убрали p-4, max-w, aspect
-          rounded-r-xl -> rounded-none (теперь тетрадь на весь экран)
-          Корректировка теней: shadow-inner + shadow-lg по краям
-      */}
-      <div
-        className="relative w-full h-screen border-l-8 border-y-2 border-r-2 rounded-none shadow-[inner_0_0_20px_rgba(0,0,0,0.1),_0_0_30px_rgba(0,0,0,0.2)] flex flex-col items-center justify-center p-8 md:p-12 transition-colors duration-300"
-        style={{ background: color.bg, borderColor: color.border }}
-      >
-        {/* Кнопка палитры - перемещена в верхний правый угол с padding */}
-        <button
-          className="absolute top-6 right-6 text-2xl md:text-3xl hover:scale-110 transition-transform"
-          style={{ color: color.text }}
-          onClick={() => setShowPalette((p) => !p)}
-        >
-          🎨
-        </button>
+  // Стиль фона обложки: фото или цвет
+  const coverStyle = bgImage
+    ? {
+        backgroundImage: `url(${bgImage})`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        borderColor: "rgba(0,0,0,0.3)",
+      }
+    : { background: color.bg, borderColor: color.border };
 
-        {/* Выбор цвета: адаптивный, по центру над тетрадью */}
-        {showPalette && (
-          <div className="absolute top-16 right-6 md:top-24 md:right-12 flex flex-row gap-3 p-3 bg-white/95 rounded-full shadow-xl">
-            {COLORS.map((c, i) => (
-              <button
-                key={i}
-                className="w-8 h-8 md:w-10 md:h-10 rounded-full border-2 transition-transform hover:scale-110"
-                style={{
-                  background: c.bg,
-                  borderColor: i === colorIdx ? "#000" : "transparent",
-                }}
-                onClick={() => {
-                  setColorIdx(i);
-                  setShowPalette(false);
-                }}
-              />
-            ))}
-          </div>
+  // Цвет текста: на фото — белый с тенью, на цвете — родной
+  const textColor = bgImage ? "#ffffff" : color.text;
+  const textShadow = bgImage ? "0 1px 4px rgba(0,0,0,0.6)" : undefined;
+  const borderColor = bgImage ? "rgba(255,255,255,0.7)" : color.border;
+
+  // Загрузка файла → base64
+  function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setBgImage(reader.result as string);
+      setShowPalette(false);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // Применить ссылку
+  function applyUrl() {
+    const url = urlInput.trim();
+    if (!url) return;
+    // Простая проверка что это похоже на ссылку
+    if (!url.startsWith("http")) {
+      setUrlError(true);
+      return;
+    }
+    setBgImage(url);
+    setUrlError(false);
+    setShowUrlInput(false);
+    setUrlInput("");
+    setShowPalette(false);
+  }
+
+  // Сбросить фото
+  function resetBg() {
+    setBgImage(null);
+    setUrlInput("");
+    setUrlError(false);
+    if (fileRef.current) fileRef.current.value = "";
+  }
+
+  return (
+    <div className="min-h-screen w-full flex items-center justify-center bg-neutral-200">
+      <div
+        className="relative w-full h-screen border-l-8 border-y-2 border-r-2 rounded-none flex flex-col items-center justify-center p-8 md:p-12 transition-all duration-300"
+        style={coverStyle}
+      >
+        {/* Затемнение если есть фото — для читаемости текста */}
+        {bgImage && (
+          <div className="absolute inset-0 bg-black/30 pointer-events-none" />
         )}
 
-        {/* Заголовок: адаптивный, крупнее на больших экранах */}
-        <h1
-          className="text-4xl md:text-5xl font-extrabold tracking-[8px] md:tracking-[12px] uppercase mb-20 md:mb-28 text-center"
-          style={{ color: color.text }}
-        >
-          ТЕТРАДЬ
-        </h1>
+        {/* Всё содержимое поверх затемнения */}
+        <div className="relative z-10 w-full flex flex-col items-center">
 
-        {/* Поля: Flexbox центрирование и адаптивная ширина */}
-        <div className="w-full max-w-[320px] md:max-w-[480px] flex flex-col gap-10 md:gap-12">
-          {[
-            { label: "для", value: subject, onChange: setSubject },
-            { label: "имя", value: firstName, onChange: setFirstName },
-            { label: "фамилия", value: lastName, onChange: setLastName },
-          ].map(({ label, value, onChange }) => (
-            <div key={label} className="flex items-end gap-4 md:gap-6">
-              <span className="text-base md:text-lg font-semibold uppercase whitespace-nowrap" style={{ color: color.text }}>
-                {label}:
-              </span>
-              <input
-                type="text"
-                value={value}
-                onChange={(e) => onChange(e.target.value)}
-                className="flex-1 bg-transparent border-0 border-b-2 outline-none text-xl md:text-2xl pb-1.5 md:pb-2 font-mono tracking-wide"
-                style={{ borderBottomColor: color.border, color: color.text }}
-              />
+          {/* Кнопка палитры */}
+          <button
+            className="absolute top-0 right-0 text-2xl md:text-3xl hover:scale-110 transition-transform"
+            style={{ color: textColor }}
+            onClick={() => {
+              setShowPalette((p) => !p);
+              setShowUrlInput(false);
+            }}
+            aria-label="Изменить оформление обложки"
+          >
+            🎨
+          </button>
+
+          {/* Панель выбора */}
+          {showPalette && (
+            <div className="absolute top-10 right-0 flex flex-col gap-3 p-4 bg-white rounded-2xl shadow-xl min-w-[220px] z-20">
+
+              {/* Цвета */}
+              <p className="text-xs text-neutral-400 uppercase tracking-wider">цвет</p>
+              <div className="flex gap-2 flex-wrap">
+                {COLORS.map((c, i) => (
+                  <button
+                    key={i}
+                    className="w-8 h-8 rounded-full border-2 transition-transform hover:scale-110"
+                    style={{
+                      background: c.bg,
+                      borderColor: i === colorIdx && !bgImage ? "#000" : "transparent",
+                    }}
+                    onClick={() => {
+                      setColorIdx(i);
+                      resetBg();
+                      setShowPalette(false);
+                    }}
+                    aria-label={c.label}
+                  />
+                ))}
+              </div>
+
+              <div className="border-t border-neutral-100 pt-2 flex flex-col gap-2">
+                <p className="text-xs text-neutral-400 uppercase tracking-wider">фото</p>
+
+                {/* Загрузить файл */}
+                <button
+                  className="text-sm text-left px-3 py-2 rounded-lg bg-neutral-100 hover:bg-neutral-200 transition-colors"
+                  onClick={() => fileRef.current?.click()}
+                >
+                  📁 загрузить с устройства
+                </button>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleFile}
+                />
+
+                {/* Вставить ссылку */}
+                <button
+                  className="text-sm text-left px-3 py-2 rounded-lg bg-neutral-100 hover:bg-neutral-200 transition-colors"
+                  onClick={() => setShowUrlInput((v) => !v)}
+                >
+                  🔗 вставить ссылку на фото
+                </button>
+
+                {showUrlInput && (
+                  <div className="flex flex-col gap-1">
+                    <input
+                      type="text"
+                      placeholder="https://..."
+                      value={urlInput}
+                      onChange={(e) => {
+                        setUrlInput(e.target.value);
+                        setUrlError(false);
+                      }}
+                      className={`text-sm px-2 py-1.5 border rounded-lg outline-none ${
+                        urlError ? "border-red-400" : "border-neutral-300"
+                      }`}
+                      onKeyDown={(e) => e.key === "Enter" && applyUrl()}
+                    />
+                    {urlError && (
+                      <p className="text-xs text-red-500">введи корректную ссылку</p>
+                    )}
+                    <button
+                      className="text-sm bg-neutral-800 text-white rounded-lg py-1.5 hover:bg-neutral-700 transition-colors"
+                      onClick={applyUrl}
+                    >
+                      применить
+                    </button>
+                  </div>
+                )}
+
+                {/* Сбросить фото */}
+                {bgImage && (
+                  <button
+                    className="text-sm text-red-500 text-left px-3 py-1 hover:underline"
+                    onClick={() => {
+                      resetBg();
+                      setShowPalette(false);
+                    }}
+                  >
+                    ✕ убрать фото
+                  </button>
+                )}
+              </div>
             </div>
-          ))}
-        </div>
+          )}
 
-        {/* Кнопка "Открыть": адаптивная ширина, крупнее, прижата к низу */}
-        <button
-          className="mt-20 md:mt-28 w-full max-w-[320px] md:max-w-[400px] border-l-8 border-r-2 border-y-2 rounded py-4 md:py-5 text-base md:text-lg uppercase tracking-widest font-bold hover:bg-black/5 transition-all active:scale-[0.98]"
-          style={{ borderColor: color.border, color: color.text, transitionProperty: "background, border, color, transform" }}
-          onClick={onOpen}
-        >
-          Открыть тетрадь →
-        </button>
+          {/* Заголовок */}
+          <h1
+            className="text-4xl md:text-5xl font-extrabold tracking-[8px] md:tracking-[12px] uppercase mb-20 md:mb-28 text-center mt-8"
+            style={{ color: textColor, textShadow }}
+          >
+            ТЕТРАДЬ
+          </h1>
+
+          {/* Поля */}
+          <div className="w-full max-w-[320px] md:max-w-[480px] flex flex-col gap-10 md:gap-12">
+            {[
+              { label: "для", value: subject, onChange: setSubject },
+              { label: "имя", value: firstName, onChange: setFirstName },
+              { label: "фамилия", value: lastName, onChange: setLastName },
+            ].map(({ label, value, onChange }) => (
+              <div key={label} className="flex items-end gap-4 md:gap-6">
+                <span
+                  className="text-base md:text-lg font-semibold uppercase whitespace-nowrap"
+                  style={{ color: textColor, textShadow }}
+                >
+                  {label}:
+                </span>
+                <input
+                  type="text"
+                  value={value}
+                  onChange={(e) => onChange(e.target.value)}
+                  className="flex-1 bg-transparent border-0 border-b-2 outline-none text-xl md:text-2xl pb-1.5 md:pb-2 font-mono tracking-wide"
+                  style={{ borderBottomColor: borderColor, color: textColor, textShadow }}
+                />
+              </div>
+            ))}
+          </div>
+
+          {/* Кнопка открыть */}
+          <button
+            className="mt-20 md:mt-28 w-full max-w-[320px] md:max-w-[400px] border-l-8 border-r-2 border-y-2 rounded py-4 md:py-5 text-base md:text-lg uppercase tracking-widest font-bold hover:bg-black/10 transition-all active:scale-[0.98]"
+            style={{ borderColor, color: textColor, textShadow }}
+            onClick={onOpen}
+          >
+            Открыть тетрадь →
+          </button>
+        </div>
       </div>
     </div>
   );
