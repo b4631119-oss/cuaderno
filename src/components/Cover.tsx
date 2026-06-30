@@ -228,7 +228,7 @@ export default function Cover({ onOpen }: CoverProps) {
             className="mt-20 md:mt-28 w-full max-w-[320px] md:max-w-[400px] border-l-8 border-r-2 border-y-2 rounded py-4 md:py-5 text-base md:text-lg uppercase tracking-widest font-bold hover:bg-black/10 transition-all active:scale-[0.98]"
             style={{ borderColor, color: textColor, textShadow }}
             onClick={onOpen}
-          >
+            >
             Открыть тетрадь →
           </button>
         </div>
