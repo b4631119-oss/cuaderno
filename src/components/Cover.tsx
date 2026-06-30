@@ -89,12 +89,11 @@ export default function Cover({ onOpen }: CoverProps) {
 
         <div className="relative z-10 w-full flex flex-col items-center">
 
-          {/* Кнопка палитры с подложкой для лучшего UI на темных фото */}
           <button
             className="absolute top-0 right-0 text-2xl md:text-3xl hover:scale-110 transition-transform p-2 rounded-full bg-black/5 backdrop-blur-xs"
             style={{ color: textColor }}
             onClick={(e) => {
-              e.stopPropagation(); // Чтобы клик не триггерил закрытие обложки
+              e.stopPropagation(); 
               setShowPalette((p) => !p);
               setShowUrlInput(false);
             }}
