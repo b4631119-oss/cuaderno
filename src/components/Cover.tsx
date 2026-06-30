@@ -51,7 +51,6 @@ export default function Cover({ onOpen }: CoverProps) {
     };
     reader.readAsDataURL(file);
   }
-
   function applyUrl() {
     const url = urlInput.trim();
     if (!url) return;
@@ -65,14 +64,12 @@ export default function Cover({ onOpen }: CoverProps) {
     setUrlInput("");
     setShowPalette(false);
   }
-
   function resetBg() {
     setBgImage(null);
     setUrlInput("");
     setUrlError(false);
     if (fileRef.current) fileRef.current.value = "";
   }
-
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-neutral-200">
       <div
