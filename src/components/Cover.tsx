@@ -10,7 +10,6 @@ const COLORS = [
   { bg: "#f0a0a0", border: "#A32D2D", text: "#501313", label: "красный" },
   { bg: "#d3d1c7", border: "#5F5E5A", text: "#2C2C2A", label: "серый" },
 ];
-
 interface CoverProps {
   onOpen: () => void;
 }
@@ -223,7 +222,6 @@ export default function Cover({ onOpen }: CoverProps) {
                   type="text"
                   value={value}
                   onChange={(e) => onChange(e.target.value)}
-                  // UI Фикс: добавил плавное изменение прозрачности при фокусе
                   className="flex-1 bg-transparent border-0 border-b-2 outline-none text-xl md:text-2xl pb-1.5 md:pb-2 font-mono tracking-wide transition-all focus:border-opacity-100 border-opacity-60"
                   style={{ borderBottomColor: borderColor, color: textColor, textShadow }}
                 />
