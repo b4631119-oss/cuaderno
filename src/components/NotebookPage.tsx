@@ -10,14 +10,12 @@ export default function NotebookPage() {
     { title: "Страница 1", content: "Напишите что-нибудь..." }
   ]);
 
-  // Функция обновления текста
   const updateContent = (newContent: string) => {
     const updated = [...pages];
     updated[index].content = newContent;
     setPages(updated);
   };
 
-  // Функция обновления заголовка
   const updateTitle = (newTitle: string) => {
     const updated = [...pages];
     updated[index].title = newTitle;
