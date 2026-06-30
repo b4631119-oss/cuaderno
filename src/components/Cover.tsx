@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import AuthGate from "../components/AuthGate";
 
 const COLORS = [
   { bg: "#8fbc5a", border: "#3B6D11", text: "#173404", label: "зелёный" },
@@ -10,9 +11,11 @@ const COLORS = [
   { bg: "#f0a0a0", border: "#A32D2D", text: "#501313", label: "красный" },
   { bg: "#d3d1c7", border: "#5F5E5A", text: "#2C2C2A", label: "серый" },
 ];
+
 interface CoverProps {
   onOpen: () => void;
 }
+
 export default function Cover({ onOpen }: CoverProps) {
   const [colorIdx, setColorIdx] = useState(0);
   const [showPalette, setShowPalette] = useState(false);
@@ -25,6 +28,9 @@ export default function Cover({ onOpen }: CoverProps) {
   const [showUrlInput, setShowUrlInput] = useState(false);
   const [urlError, setUrlError] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Новое: показываем экран входа/регистрации поверх обложки
+  const [showAuth, setShowAuth] = useState(false);
 
   const color = COLORS[colorIdx];
 
@@ -70,12 +76,12 @@ export default function Cover({ onOpen }: CoverProps) {
     setUrlError(false);
     if (fileRef.current) fileRef.current.value = "";
   }
+
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-neutral-200">
       <div
         className="relative w-full h-screen border-l-8 border-y-2 border-r-2 rounded-none flex flex-col items-center justify-center p-8 md:p-12 transition-all duration-300"
         style={coverStyle}
-        // UX Фикс: клик по обложке закрывает палитру, если она открыта
         onClick={() => {
           if (showPalette) {
             setShowPalette(false);
@@ -88,12 +94,11 @@ export default function Cover({ onOpen }: CoverProps) {
         )}
 
         <div className="relative z-10 w-full flex flex-col items-center">
-
           <button
             className="absolute top-0 right-0 text-2xl md:text-3xl hover:scale-110 transition-transform p-2 rounded-full bg-black/5 backdrop-blur-xs"
             style={{ color: textColor }}
             onClick={(e) => {
-              e.stopPropagation(); 
+              e.stopPropagation();
               setShowPalette((p) => !p);
               setShowUrlInput(false);
             }}
@@ -103,9 +108,9 @@ export default function Cover({ onOpen }: CoverProps) {
           </button>
 
           {showPalette && (
-            <div 
+            <div
               className="absolute top-14 right-0 flex flex-col gap-3 p-4 bg-white rounded-2xl shadow-xl min-w-[220px] z-20"
-              onClick={(e) => e.stopPropagation()} // Чтобы клики внутри панели её не закрывали
+              onClick={(e) => e.stopPropagation()}
             >
               <p className="text-xs text-neutral-400 uppercase tracking-wider">цвет</p>
               <div className="flex gap-2 flex-wrap">
@@ -164,7 +169,7 @@ export default function Cover({ onOpen }: CoverProps) {
                       className={`text-sm px-2 py-1.5 border rounded-lg outline-none transition-colors text-black ${
                         urlError ? "border-red-400" : "border-neutral-300 focus:border-neutral-500"
                       }`}
-                      onKeyDown={(e) => e.key === "Enter" &&  applyUrl()}
+                      onKeyDown={(e) => e.key === "Enter" && applyUrl()}
                     />
                     {urlError && (
                       <p className="text-xs text-red-500">введи корректную ссылку</p>
@@ -186,7 +191,7 @@ export default function Cover({ onOpen }: CoverProps) {
                       setShowPalette(false);
                     }}
                   >
-                    Х убрать фото
+                    ✕ убрать фото
                   </button>
                 )}
               </div>
@@ -223,15 +228,29 @@ export default function Cover({ onOpen }: CoverProps) {
               </div>
             ))}
           </div>
+
+          {/* Кнопка теперь открывает AuthGate, а не сразу onOpen */}
           <button
             className="mt-20 md:mt-28 w-full max-w-[320px] md:max-w-[400px] border-l-8 border-r-2 border-y-2 rounded py-4 md:py-5 text-base md:text-lg uppercase tracking-widest font-bold hover:bg-black/10 transition-all active:scale-[0.98]"
             style={{ borderColor, color: textColor, textShadow }}
-            onClick={onOpen}
-            >
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowAuth(true);
+            }}
+          >
             Открыть тетрадь →
           </button>
         </div>
       </div>
+
+      {/* Экран входа/регистрации поверх обложки */}
+      {showAuth && (
+        <AuthGate
+          accentColor={color.border}
+          onCancel={() => setShowAuth(false)}
+          onSuccess={onOpen}
+        />
+      )}
     </div>
   );
 }
