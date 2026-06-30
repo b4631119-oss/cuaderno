@@ -192,7 +192,7 @@ export default function Cover({ onOpen }: CoverProps) {
                       setShowPalette(false);
                     }}
                   >
-                    ✕ убрать фото
+                    Х убрать фото
                   </button>
                 )}
               </div>
