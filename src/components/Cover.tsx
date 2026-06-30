@@ -13,7 +13,6 @@ const COLORS = [
 interface CoverProps {
   onOpen: () => void;
 }
-
 export default function Cover({ onOpen }: CoverProps) {
   const [colorIdx, setColorIdx] = useState(0);
   const [showPalette, setShowPalette] = useState(false);
