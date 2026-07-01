@@ -95,8 +95,6 @@ export default function Cover({ onOpen }: CoverProps) {
           coverImage: bgImage,
         });
       } catch (err) {
-        // Не блокируем переход внутрь тетради даже если сохранение не удалось —
-        // человек уже залогинен, страница откроется, просто без оформления
         console.error("Не удалось сохранить профиль обложки:", err);
       } finally {
         setSaving(false);
