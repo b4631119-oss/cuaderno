@@ -4,10 +4,10 @@ import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { getAuthErrorMessage } from "../lib/auth-errors";
 
-import { User } from "firebase/auth"; // Импортируем тип User из Firebase Auth
+import { User } from "firebase/auth"; 
 
 interface AuthGateProps {
-  onSuccess: (user: User) => void; // Теперь onSuccess ожидает объект пользователя
+  onSuccess: (user: User) => void; 
   onCancel: () => void;
   accentColor: string;
 }
@@ -20,7 +20,6 @@ export default function AuthGate({ onSuccess, onCancel, accentColor }: AuthGateP
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Обработчик отправки формы (вход или регистрация)
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
@@ -32,7 +31,6 @@ export default function AuthGate({ onSuccess, onCancel, accentColor }: AuthGateP
       } else {
         loggedInUser = await register(email, password);
       }
-      // Передаем полученного пользователя наверх, минуя задержку стейта
       onSuccess(loggedInUser);
     } catch (err) {
       setError(getAuthErrorMessage(err));
@@ -44,7 +42,6 @@ export default function AuthGate({ onSuccess, onCancel, accentColor }: AuthGateP
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
       <div className="w-full max-w-sm bg-white rounded-2xl shadow-2xl p-8 relative">
-        {/* Закрыть и вернуться к обложке */}
         <button
           className="absolute top-4 right-4 text-neutral-400 hover:text-neutral-600 transition-colors text-xl"
           onClick={onCancel}
