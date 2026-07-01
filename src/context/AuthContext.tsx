@@ -15,12 +15,11 @@ import {
   signOut,
 } from "firebase/auth";
 import { auth } from "../lib/firebase";
-
 interface AuthContextValue {
   user: User | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<User>; // Возвращаем Promise<User> вместо Promise<void>
-  register: (email: string, password: string) => Promise<User>; // Возвращаем Promise<User> вместо Promise<void>
+  login: (email: string, password: string) => Promise<User>; 
+  register: (email: string, password: string) => Promise<User>; 
   logout: () => Promise<void>;
 }
 
@@ -30,7 +29,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Подписываемся на изменения состояния авторизации Firebase
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser);
@@ -39,13 +37,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, []);
 
-  // Функция авторизации: выполняет вход и возвращает объект пользователя
   async function login(email: string, password: string): Promise<User> {
     const credential = await signInWithEmailAndPassword(auth, email, password);
     return credential.user;
   }
 
-  // Функция регистрации: создает пользователя и возвращает его объект
   async function register(email: string, password: string): Promise<User> {
     const credential = await createUserWithEmailAndPassword(auth, email, password);
     return credential.user;
