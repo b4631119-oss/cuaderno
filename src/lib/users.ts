@@ -31,13 +31,11 @@ export async function saveUserPages(
   uid: string,
   pages: UserPage[]
 ): Promise<void> {
- 
   await setDoc(doc(db, "users", uid), {
     pages,
     updatedAt: serverTimestamp(),
   }, { merge: true });
 }
-
 export async function getUserProfile(
   uid: string
 ): Promise<UserProfile | null> {
