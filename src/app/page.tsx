@@ -17,8 +17,7 @@ export default function Home() {
       </div>
     );
   }
-
- 
+  
   if (user || opened) {
     return <NotebookPage />;
   }
