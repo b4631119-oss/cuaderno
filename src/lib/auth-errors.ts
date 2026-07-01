@@ -7,7 +7,6 @@ export function getAuthErrorMessage(error: unknown): string {
   }
 
   switch (error.code) {
-    // Вход
     case "auth/invalid-email":
       return "Проверь правильность email.";
     case "auth/user-not-found":
@@ -20,7 +19,6 @@ export function getAuthErrorMessage(error: unknown): string {
     case "auth/too-many-requests":
       return "Слишком много попыток. Подожди немного и попробуй снова.";
 
-    // Регистрация
     case "auth/email-already-in-use":
       return "Эта тетрадь уже есть — попробуй войти вместо регистрации.";
     case "auth/weak-password":
@@ -28,7 +26,6 @@ export function getAuthErrorMessage(error: unknown): string {
     case "auth/operation-not-allowed":
       return "Регистрация по email временно недоступна.";
 
-    // Сеть / прочее
     case "auth/network-request-failed":
       return "Нет соединения с интернетом. Проверь сеть.";
     case "auth/internal-error":
