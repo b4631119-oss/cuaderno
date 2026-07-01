@@ -8,7 +8,7 @@ export interface UserProfile {
   coverColorBg: string;
   coverColorBorder: string;
   coverColorText: string;
-  coverImage: string | null; // base64 или ссылка, либо null если выбран цвет
+  coverImage: string | null; 
 }
 
 /**
