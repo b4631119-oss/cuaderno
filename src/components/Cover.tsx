@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react"; // Добавили useEffect
+import { useState, useRef, useEffect } from "react"; 
 import AuthGate from "../components/AuthGate";
 import { useAuth } from "../context/AuthContext";
-import { saveUserProfile, getUserProfile } from "../lib/users"; // Добавили getUserProfile
-import { User } from "firebase/auth"; // Импортируем тип User из Firebase Auth
+import { saveUserProfile, getUserProfile } from "../lib/users"; 
+import { User } from "firebase/auth"; 
 
 const COLORS = [
   { bg: "#8fbc5a", border: "#3B6D11", text: "#173404", label: "зелёный" },
@@ -109,8 +109,6 @@ export default function Cover({ onOpen }: CoverProps) {
     if (fileRef.current) fileRef.current.value = "";
   }
 
-  // Вызывается после успешного входа/регистрации внутри AuthGate или напрямую
-  // Принимает firebaseUser напрямую из AuthGate для решения проблемы асинхронного обновления стейта
   async function handleAuthSuccess(firebaseUser?: User) {
     const activeUser = firebaseUser || user;
     if (activeUser) {
