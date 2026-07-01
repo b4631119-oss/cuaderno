@@ -2,6 +2,8 @@
 
 import { useState, useRef } from "react";
 import AuthGate from "../components/AuthGate";
+import { useAuth } from "../context/AuthContext";
+import { saveUserProfile } from "../lib/users";
 
 const COLORS = [
   { bg: "#8fbc5a", border: "#3B6D11", text: "#173404", label: "зелёный" },
@@ -17,6 +19,7 @@ interface CoverProps {
 }
 
 export default function Cover({ onOpen }: CoverProps) {
+  const { user } = useAuth();
   const [colorIdx, setColorIdx] = useState(0);
   const [showPalette, setShowPalette] = useState(false);
   const [subject, setSubject] = useState("");
@@ -29,8 +32,8 @@ export default function Cover({ onOpen }: CoverProps) {
   const [urlError, setUrlError] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // Новое: показываем экран входа/регистрации поверх обложки
   const [showAuth, setShowAuth] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const color = COLORS[colorIdx];
 
@@ -75,6 +78,31 @@ export default function Cover({ onOpen }: CoverProps) {
     setUrlInput("");
     setUrlError(false);
     if (fileRef.current) fileRef.current.value = "";
+  }
+
+  // Вызывается после успешного входа/регистрации внутри AuthGate
+  async function handleAuthSuccess() {
+    if (user) {
+      setSaving(true);
+      try {
+        await saveUserProfile(user.uid, {
+          firstName,
+          lastName,
+          subject,
+          coverColorBg: color.bg,
+          coverColorBorder: color.border,
+          coverColorText: color.text,
+          coverImage: bgImage,
+        });
+      } catch (err) {
+        // Не блокируем переход внутрь тетради даже если сохранение не удалось —
+        // человек уже залогинен, страница откроется, просто без оформления
+        console.error("Не удалось сохранить профиль обложки:", err);
+      } finally {
+        setSaving(false);
+      }
+    }
+    onOpen();
   }
 
   return (
@@ -229,26 +257,29 @@ export default function Cover({ onOpen }: CoverProps) {
             ))}
           </div>
 
-          {/* Кнопка теперь открывает AuthGate, а не сразу onOpen */}
           <button
-            className="mt-20 md:mt-28 w-full max-w-[320px] md:max-w-[400px] border-l-8 border-r-2 border-y-2 rounded py-4 md:py-5 text-base md:text-lg uppercase tracking-widest font-bold hover:bg-black/10 transition-all active:scale-[0.98]"
+            className="mt-20 md:mt-28 w-full max-w-[320px] md:max-w-[400px] border-l-8 border-r-2 border-y-2 rounded py-4 md:py-5 text-base md:text-lg uppercase tracking-widest font-bold hover:bg-black/10 transition-all active:scale-[0.98] disabled:opacity-60"
             style={{ borderColor, color: textColor, textShadow }}
+            disabled={saving}
             onClick={(e) => {
               e.stopPropagation();
-              setShowAuth(true);
+              if (user) {
+                handleAuthSuccess();
+              } else {
+                setShowAuth(true);
+              }
             }}
           >
-            Открыть тетрадь →
+            {saving ? "Сохраняем..." : "Открыть тетрадь →"}
           </button>
         </div>
       </div>
 
-      {/* Экран входа/регистрации поверх обложки */}
       {showAuth && (
         <AuthGate
           accentColor={color.border}
           onCancel={() => setShowAuth(false)}
-          onSuccess={onOpen}
+          onSuccess={handleAuthSuccess}
         />
       )}
     </div>
