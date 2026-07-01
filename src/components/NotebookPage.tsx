@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react"; // Импортировали useRef
 import { useAuth } from "../context/AuthContext";
-import { getUserProfile, UserProfile } from "../lib/users";
+import { getUserProfile, saveUserPages, UserProfile } from "../lib/users"; // Импортировали saveUserPages
 import Cover from "../components/Cover";
 
 export default function NotebookPage() {
@@ -15,12 +15,42 @@ export default function NotebookPage() {
     { title: "Страница 1", content: "Напишите что-нибудь..." },
   ]);
 
+  // Реф для отслеживания того, загружены ли данные из базы данных.
+  // Это нужно, чтобы автосохранение не срабатывало при первом открытии страницы.
+  const isLoadedRef = useRef(false);
+
+  // Загружаем профиль пользователя и сохранённые страницы
   useEffect(() => {
     if (!user) return;
     getUserProfile(user.uid).then((p) => {
-      if (p) setProfile(p);
+      if (p) {
+        setProfile(p);
+        // Если в базе сохранены страницы, загружаем их вместо дефолтных
+        if (p.pages && p.pages.length > 0) {
+          setPages(p.pages);
+        }
+      }
+      // Ставим таймаут на следующий тик, чтобы переключить флаг ПОСЛЕ
+      // того, как React обновит стейт страниц из базы данных.
+      setTimeout(() => {
+        isLoadedRef.current = true;
+      }, 0);
     });
   }, [user]);
+
+  // Эффект автоматического сохранения страниц в Firestore.
+  // Запускается при каждом изменении контента страниц, но с дебаунсом в 1.5 сек.
+  useEffect(() => {
+    if (!user || !isLoadedRef.current) return;
+
+    const saveTimeout = setTimeout(() => {
+      saveUserPages(user.uid, pages).catch((err) => {
+        console.error("Ошибка автосохранения страниц:", err);
+      });
+    }, 1500); // Сохраняем через 1.5 секунды после окончания ввода
+
+    return () => clearTimeout(saveTimeout);
+  }, [pages, user]);
 
   const updateContent = (newContent: string) => {
     const updated = [...pages];

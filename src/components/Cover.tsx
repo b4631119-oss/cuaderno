@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react"; // Добавили useEffect
 import AuthGate from "../components/AuthGate";
 import { useAuth } from "../context/AuthContext";
-import { saveUserProfile } from "../lib/users";
+import { saveUserProfile, getUserProfile } from "../lib/users"; // Добавили getUserProfile
+import { User } from "firebase/auth"; // Импортируем тип User из Firebase Auth
 
 const COLORS = [
   { bg: "#8fbc5a", border: "#3B6D11", text: "#173404", label: "зелёный" },
@@ -50,6 +51,34 @@ export default function Cover({ onOpen }: CoverProps) {
   const textShadow = bgImage ? "0 1px 4px rgba(0,0,0,0.6)" : undefined;
   const borderColor = bgImage ? "rgba(255,255,255,0.7)" : color.border;
 
+  // Автоматически подгружаем профиль пользователя, если он уже вошел
+  // и решил отредактировать обложку
+  useEffect(() => {
+    if (!user) return;
+    
+    let isMounted = true;
+    getUserProfile(user.uid).then((profile) => {
+      if (profile && isMounted) {
+        setFirstName(profile.firstName || "");
+        setLastName(profile.lastName || "");
+        setSubject(profile.subject || "");
+        if (profile.coverImage) {
+          setBgImage(profile.coverImage);
+        } else {
+          // Восстанавливаем сохраненный ранее цвет
+          const idx = COLORS.findIndex((c) => c.bg === profile.coverColorBg);
+          if (idx !== -1) {
+            setColorIdx(idx);
+          }
+        }
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user]);
+
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -80,12 +109,14 @@ export default function Cover({ onOpen }: CoverProps) {
     if (fileRef.current) fileRef.current.value = "";
   }
 
-  // Вызывается после успешного входа/регистрации внутри AuthGate
-  async function handleAuthSuccess() {
-    if (user) {
+  // Вызывается после успешного входа/регистрации внутри AuthGate или напрямую
+  // Принимает firebaseUser напрямую из AuthGate для решения проблемы асинхронного обновления стейта
+  async function handleAuthSuccess(firebaseUser?: User) {
+    const activeUser = firebaseUser || user;
+    if (activeUser) {
       setSaving(true);
       try {
-        await saveUserProfile(user.uid, {
+        await saveUserProfile(activeUser.uid, {
           firstName,
           lastName,
           subject,

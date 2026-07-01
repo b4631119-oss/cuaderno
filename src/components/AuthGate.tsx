@@ -4,8 +4,10 @@ import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { getAuthErrorMessage } from "../lib/auth-errors";
 
+import { User } from "firebase/auth"; // Импортируем тип User из Firebase Auth
+
 interface AuthGateProps {
-  onSuccess: () => void;
+  onSuccess: (user: User) => void; // Теперь onSuccess ожидает объект пользователя
   onCancel: () => void;
   accentColor: string;
 }
@@ -18,17 +20,20 @@ export default function AuthGate({ onSuccess, onCancel, accentColor }: AuthGateP
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // Обработчик отправки формы (вход или регистрация)
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     setLoading(true);
     try {
+      let loggedInUser: User;
       if (mode === "login") {
-        await login(email, password);
+        loggedInUser = await login(email, password);
       } else {
-        await register(email, password);
+        loggedInUser = await register(email, password);
       }
-      onSuccess();
+      // Передаем полученного пользователя наверх, минуя задержку стейта
+      onSuccess(loggedInUser);
     } catch (err) {
       setError(getAuthErrorMessage(err));
     } finally {
