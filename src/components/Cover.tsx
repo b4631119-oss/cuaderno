@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react"; 
 import AuthGate from "../components/AuthGate";
 import { useAuth } from "../context/AuthContext";
-import { saveUserProfile, getUserProfile } from "../lib/users"; 
+import { saveUserProfile, getUserProfile, UserProfile } from "../lib/users"; 
 import { User } from "firebase/auth"; 
 
 const COLORS = [
@@ -35,6 +35,7 @@ export default function Cover({ onOpen }: CoverProps) {
 
   const [showAuth, setShowAuth] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [loadedProfile, setLoadedProfile] = useState<UserProfile | null>(null);
 
   const color = COLORS[colorIdx];
 
@@ -71,6 +72,7 @@ export default function Cover({ onOpen }: CoverProps) {
             setColorIdx(idx);
           }
         }
+        setLoadedProfile(profile);
       }
     });
 
@@ -112,21 +114,35 @@ export default function Cover({ onOpen }: CoverProps) {
   async function handleAuthSuccess(firebaseUser?: User) {
     const activeUser = firebaseUser || user;
     if (activeUser) {
-      setSaving(true);
-      try {
-        await saveUserProfile(activeUser.uid, {
-          firstName,
-          lastName,
-          subject,
-          coverColorBg: color.bg,
-          coverColorBorder: color.border,
-          coverColorText: color.text,
-          coverImage: bgImage,
-        });
-      } catch (err) {
-        console.error("Не удалось сохранить профиль обложки:", err);
-      } finally {
-        setSaving(false);
+      const hasChanges =
+        !loadedProfile ||
+        (loadedProfile.firstName || "") !== firstName ||
+        (loadedProfile.lastName || "") !== lastName ||
+        (loadedProfile.subject || "") !== subject ||
+        (loadedProfile.coverColorBg || "") !== color.bg ||
+        (loadedProfile.coverColorBorder || "") !== color.border ||
+        (loadedProfile.coverColorText || "") !== color.text ||
+        (loadedProfile.coverImage || null) !== bgImage;
+
+      if (hasChanges) {
+        setSaving(true);
+        try {
+          const updatedProfile = {
+            firstName,
+            lastName,
+            subject,
+            coverColorBg: color.bg,
+            coverColorBorder: color.border,
+            coverColorText: color.text,
+            coverImage: bgImage,
+          };
+          await saveUserProfile(activeUser.uid, updatedProfile);
+          setLoadedProfile((prev) => (prev ? { ...prev, ...updatedProfile } : updatedProfile));
+        } catch (err) {
+          console.error("Не удалось сохранить профиль обложки:", err);
+        } finally {
+          setSaving(false);
+        }
       }
     }
     onOpen();
