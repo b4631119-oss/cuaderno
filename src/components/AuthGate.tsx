@@ -7,7 +7,7 @@ import { getAuthErrorMessage } from "../lib/auth-errors";
 interface AuthGateProps {
   onSuccess: () => void;
   onCancel: () => void;
-  accentColor: string; // подстраиваем акцентный цвет под цвет обложки
+  accentColor: string;
 }
 
 export default function AuthGate({ onSuccess, onCancel, accentColor }: AuthGateProps) {

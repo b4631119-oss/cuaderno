@@ -1,14 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useAuth } from "../context/AuthContext";
+import { getUserProfile, UserProfile } from "../lib/users";
+import Cover from "../components/Cover";
 
 export default function NotebookPage() {
+  const { user, logout } = useAuth();
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [showCover, setShowCover] = useState(false);
+
   const [index, setIndex] = useState(0);
-  
-  // Состояние для страниц
   const [pages, setPages] = useState([
-    { title: "Страница 1", content: "Напишите что-нибудь..." }
+    { title: "Страница 1", content: "Напишите что-нибудь..." },
   ]);
+
+  useEffect(() => {
+    if (!user) return;
+    getUserProfile(user.uid).then((p) => {
+      if (p) setProfile(p);
+    });
+  }, [user]);
 
   const updateContent = (newContent: string) => {
     const updated = [...pages];
@@ -24,67 +36,130 @@ export default function NotebookPage() {
 
   const currentPage = pages[index];
 
-  return (
-    <div className="min-h-screen w-full bg-neutral-200 flex items-center justify-center p-4">
-      <div className="relative w-full h-screen bg-white shadow-2xl notebook-grid p-12 overflow-hidden">
-        
-        {/* Красная линия */}
-        <div className="absolute left-12 top-0 bottom-0 w-0.5 bg-red-300" />
-        
-        {/* Редактируемый заголовок */}
-        <input
-          type="text"
-          value={currentPage.title}
-          onChange={(e) => updateTitle(e.target.value)}
-          className="text-3xl font-bold ml-12 bg-transparent border-b-2 border-transparent hover:border-gray-300 focus:border-blue-400 outline-none transition"
-        />
-        
-        {/* Редактируемый текст */}
-        <textarea
-          className="w-full h-[70%] mt-6 ml-12 text-xl leading-loose border-none outline-none resize-none bg-transparent"
-          value={currentPage.content}
-          onChange={(e) => updateContent(e.target.value)}
-          placeholder="Напишите что-нибудь..."
-          style={{ lineHeight: "2" }}
-        />
+  // Если нажали "посмотреть обложку" — рендерим Cover,
+  // кнопка "Открыть" внутри него вернёт обратно
+  if (showCover) {
+    return <Cover onOpen={() => setShowCover(false)} />;
+  }
 
-        {/* Навигация */}
-        <div className="absolute bottom-8 right-8 flex gap-4">
-          <button 
-            onClick={() => setIndex(i => Math.max(0, i - 1))}
-            className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 transition"
-            disabled={index === 0}
-          >
-            Назад
-          </button>
-          <button 
-            onClick={() => setIndex(i => Math.min(pages.length - 1, i + 1))}
-            className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 transition"
-            disabled={index === pages.length - 1}
-          >
-            Вперед
-          </button>
-          
-          {/* Кнопка добавления страницы */}
-          <button 
-            onClick={() => {
-              setPages([...pages, { 
-                title: `Страница ${pages.length + 1}`, 
-                content: "" 
-              }]);
-              setIndex(pages.length);
-            }}
-            className="px-4 py-2 bg-green-200 rounded hover:bg-green-300 transition"
-          >
-            +
-          </button>
+  const displayName = profile
+    ? [profile.firstName, profile.lastName].filter(Boolean).join(" ")
+    : user?.email ?? "";
+
+  const subject = profile?.subject ?? "";
+
+  return (
+    <div className="min-h-screen w-full bg-neutral-100 flex flex-col">
+
+      {/* ── Шапка ─────────────────────────────────────────────── */}
+      <header className="w-full bg-white border-b border-neutral-200 px-6 py-3 flex items-center justify-between">
+
+        {/* Левая часть — имя и предмет */}
+        <div className="flex flex-col">
+          {displayName && (
+            <span className="text-sm font-medium text-neutral-700 leading-tight">
+              {displayName}
+            </span>
+          )}
+          {subject && (
+            <span className="text-xs text-neutral-400 leading-tight">
+              {subject}
+            </span>
+          )}
         </div>
 
-        {/* Счетчик страниц */}
-        <div className="absolute bottom-8 left-12 text-sm text-gray-400">
-          Страница {index + 1} из {pages.length}
+        {/* Правая часть — кнопки */}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowCover(true)}
+            className="text-xs text-neutral-500 hover:text-neutral-800 transition-colors px-3 py-1.5 rounded-lg hover:bg-neutral-100 border border-neutral-200"
+          >
+            📓 обложка
+          </button>
+          <button
+            onClick={logout}
+            className="text-xs text-neutral-500 hover:text-red-500 transition-colors px-3 py-1.5 rounded-lg hover:bg-red-50 border border-neutral-200"
+          >
+            Выйти
+          </button>
+        </div>
+      </header>
+
+      {/* ── Тетрадь ───────────────────────────────────────────── */}
+      <div className="flex-1 flex items-center justify-center p-4">
+        <div className="relative w-full max-w-3xl bg-white shadow-xl rounded-sm overflow-hidden"
+          style={{ minHeight: "calc(100vh - 120px)" }}
+        >
+          {/* Линованный фон */}
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              backgroundImage:
+                "repeating-linear-gradient(transparent, transparent 31px, #e5e7eb 31px, #e5e7eb 32px)",
+              backgroundPositionY: "48px",
+            }}
+          />
+
+          {/* Красная вертикальная линия */}
+          <div className="absolute left-16 top-0 bottom-0 w-px bg-red-300" />
+
+          <div className="relative z-10 p-6 pl-20 pt-8">
+            {/* Заголовок страницы */}
+            <input
+              type="text"
+              value={currentPage.title}
+              onChange={(e) => updateTitle(e.target.value)}
+              className="w-full text-2xl font-bold bg-transparent border-none outline-none text-neutral-800 mb-6 placeholder:text-neutral-300"
+              placeholder="Заголовок..."
+            />
+
+            {/* Текст */}
+            <textarea
+              className="w-full bg-transparent border-none outline-none resize-none text-neutral-700 text-base leading-8 placeholder:text-neutral-300"
+              style={{ minHeight: "calc(100vh - 260px)", lineHeight: "32px" }}
+              value={currentPage.content}
+              onChange={(e) => updateContent(e.target.value)}
+              placeholder="Начни писать..."
+            />
+          </div>
         </div>
       </div>
+
+      {/* ── Навигация по страницам ────────────────────────────── */}
+      <footer className="w-full bg-white border-t border-neutral-200 px-6 py-3 flex items-center justify-between">
+        <span className="text-xs text-neutral-400">
+          Страница {index + 1} из {pages.length}
+        </span>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIndex((i) => Math.max(0, i - 1))}
+            disabled={index === 0}
+            className="px-3 py-1.5 text-sm rounded-lg bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            ← назад
+          </button>
+          <button
+            onClick={() => setIndex((i) => Math.min(pages.length - 1, i + 1))}
+            disabled={index === pages.length - 1}
+            className="px-3 py-1.5 text-sm rounded-lg bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            вперёд →
+          </button>
+          <button
+            onClick={() => {
+              setPages([
+                ...pages,
+                { title: `Страница ${pages.length + 1}`, content: "" },
+              ]);
+              setIndex(pages.length);
+            }}
+            className="px-3 py-1.5 text-sm rounded-lg bg-neutral-800 text-white hover:bg-neutral-700 transition-colors"
+          >
+            + страница
+          </button>
+        </div>
+      </footer>
     </div>
   );
 }
