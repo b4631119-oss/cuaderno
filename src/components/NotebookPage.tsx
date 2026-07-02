@@ -54,7 +54,18 @@ export default function NotebookPage() {
     setPages(updated);
   };
 
-  const currentPage = pages[index];
+  const createNewPage = () => {
+    const newPages = [
+      ...pages,
+      { title: `Страница ${pages.length + 1}`, content: "" },
+    ];
+    setPages(newPages);
+    // Гарантируем, что индекс переключится на только что созданную страницу
+    setIndex(newPages.length - 1);
+  };
+
+  // Проверка на случай, если данные еще загружаются
+  const currentPage = pages[index] || { title: "", content: "" };
 
   if (showCover) {
     return <Cover onOpen={() => setShowCover(false)} />;
@@ -67,9 +78,10 @@ export default function NotebookPage() {
   const subject = profile?.subject ?? "";
 
   return (
-    <div className="min-h-screen w-full bg-white flex flex-col">
-
-      <header className="w-full bg-white border-b border-neutral-200 px-4 md:px-6 py-2.5 flex items-center justify-between shrink-0">
+    <div className="min-h-screen w-full bg-white flex flex-col font-sans select-none">
+      
+      {/* Шапка */}
+      <header className="w-full bg-white border-b border-neutral-200 px-4 md:px-6 py-2.5 flex items-center justify-between shrink-0 z-20">
         <div className="flex flex-col">
           {displayName && (
             <span className="text-sm font-medium text-neutral-700 leading-tight">
@@ -77,7 +89,7 @@ export default function NotebookPage() {
             </span>
           )}
           {subject && (
-            <span className="text-xs text-neutral-400 leading-tight">
+            <span className="text-xs text-neutral-400 leading-tight mt-0.5">
               {subject}
             </span>
           )}
@@ -86,9 +98,9 @@ export default function NotebookPage() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowCover(true)}
-            className="text-xs text-neutral-500 hover:text-neutral-800 transition-colors px-2.5 py-1.5 rounded-lg hover:bg-neutral-100 border border-neutral-200"
+            className="text-xs text-neutral-500 hover:text-neutral-800 transition-colors px-2.5 py-1.5 rounded-lg hover:bg-neutral-100 border border-neutral-200 flex items-center gap-1"
           >
-            📓 <span className="hidden sm:inline">обложка</span>
+            <span>📓</span> <span className="hidden sm:inline">обложка</span>
           </button>
           <button
             onClick={logout}
@@ -101,39 +113,52 @@ export default function NotebookPage() {
       </header>
 
       {/* ── Лист тетради — весь экран, клетка ─────────────────── */}
-      <div className="flex-1 relative overflow-hidden">
-
-        {/* Клетчатый фон — 20px клетка */}
+      <div className="flex-1 relative overflow-hidden bg-white">
+        
+        {/* Клетчатый фон — 20px клетка с легкими линиями */}
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
             backgroundImage: `
-              linear-gradient(to right, #d1d5db 1px, transparent 1px),
-              linear-gradient(to bottom, #d1d5db 1px, transparent 1px)
+              linear-gradient(to right, rgba(209, 213, 219, 0.6) 1px, transparent 1px),
+              linear-gradient(to bottom, rgba(209, 213, 219, 0.6) 1px, transparent 1px)
             `,
             backgroundSize: "20px 20px",
+            backgroundPosition: "0px 0px"
           }}
         />
 
         {/* Красная вертикальная линия — поля */}
-        <div className="absolute left-10 md:left-16 top-0 bottom-0 w-px bg-red-300 pointer-events-none" />
+        <div className="absolute left-12 md:left-20 top-0 bottom-0 w-px bg-red-400 opacity-70 pointer-events-none" />
 
         {/* Контент поверх клетки */}
-        <div className="relative z-10 h-full flex flex-col pl-12 md:pl-20 pr-4 md:pr-8 pt-6 pb-4">
-          {/* Заголовок страницы */}
+        <div className="relative z-10 h-full flex flex-col pl-16 md:pl-24 pr-4 md:pr-8 pt-[20px] pb-4 select-text">
+          
+          {/* Заголовок страницы — выровнен ровно по двум клеткам (40px) */}
           <input
             type="text"
             value={currentPage.title}
             onChange={(e) => updateTitle(e.target.value)}
-            className="w-full text-xl md:text-2xl font-bold bg-transparent border-none outline-none text-neutral-800 mb-4 placeholder:text-neutral-300"
-            style={{ lineHeight: "40px" }}
+            className="w-full text-lg md:text-xl font-bold bg-transparent border-none outline-none text-neutral-800 placeholder:text-neutral-300"
+            style={{ 
+              height: "40px", 
+              lineHeight: "40px",
+              padding: 0,
+              margin: 0
+            }}
             placeholder="Заголовок..."
           />
 
-          {/* Текст — занимает оставшееся место */}
+          {/* Текст — идеально попадает в клетки 20px */}
           <textarea
-            className="flex-1 w-full bg-transparent border-none outline-none resize-none text-neutral-700 text-sm md:text-base placeholder:text-neutral-300"
-            style={{ lineHeight: "20px" }}
+            className="flex-1 w-full bg-transparent border-none outline-none resize-none text-neutral-700 text-sm md:text-base placeholder:text-neutral-300 focus:ring-0"
+            style={{ 
+              lineHeight: "20px", 
+              paddingTop: "0px", // Сброс внутренних отступов для выравнивания по клеткам
+              paddingBottom: "0px",
+              marginTop: "20px", // Отступ от заголовка ровно в одну клетку
+              fontFamily: "monospace, sans-serif" // Моноширинный шрифт лучше всего ложится на сетку
+            }}
             value={currentPage.content}
             onChange={(e) => updateContent(e.target.value)}
             placeholder="Начни писать..."
@@ -142,8 +167,8 @@ export default function NotebookPage() {
       </div>
 
       {/* ── Навигация ─────────────────────────────────────────── */}
-      <footer className="w-full bg-white border-t border-neutral-200 px-4 md:px-6 py-2.5 flex items-center justify-between shrink-0">
-        <span className="text-xs text-neutral-400">
+      <footer className="w-full bg-white border-t border-neutral-200 px-4 md:px-6 py-2.5 flex items-center justify-between shrink-0 z-20">
+        <span className="text-xs text-neutral-400 font-medium">
           {index + 1} / {pages.length}
         </span>
 
@@ -163,13 +188,7 @@ export default function NotebookPage() {
             →
           </button>
           <button
-            onClick={() => {
-              setPages([
-                ...pages,
-                { title: `Страница ${pages.length + 1}`, content: "" },
-              ]);
-              setIndex(pages.length);
-            }}
+            onClick={createNewPage}
             className="px-2.5 md:px-3 py-1.5 text-xs md:text-sm rounded-lg bg-neutral-800 text-white hover:bg-neutral-700 transition-colors"
           >
             + <span className="hidden sm:inline">страница</span>
