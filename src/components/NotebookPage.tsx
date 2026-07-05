@@ -81,8 +81,6 @@ export default function NotebookPage() {
 
   return (
     <div className="min-h-screen w-full bg-white flex flex-col">
-
-      {/* Шапка */}
       <header className="w-full bg-white border-b border-neutral-200 px-4 md:px-6 py-2.5 flex items-center justify-between shrink-0 z-20">
         <div className="flex flex-col">
           {displayName && (
