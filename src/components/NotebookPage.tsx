@@ -132,8 +132,7 @@ export default function NotebookPage() {
             paddingBottom: `${CELL * 2}px`,
           }}
         >
-          {/* Заголовок — одна строка, Enter переводит в текст */}
-          <div
+  <div
             ref={titleRef}
             contentEditable
             suppressContentEditableWarning
