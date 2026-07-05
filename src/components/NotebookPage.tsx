@@ -109,8 +109,6 @@ export default function NotebookPage() {
       </header>
 
       <div className="flex-1 relative overflow-auto bg-white">
-
-        {/* Клетчатый фон */}
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
@@ -121,8 +119,6 @@ export default function NotebookPage() {
             backgroundSize: `${CELL}px ${CELL}px`,
           }}
         />
-
-        {/* Красная линия — поля */}
         <div
           className="absolute top-0 bottom-0 w-px bg-red-400 opacity-50 pointer-events-none"
           style={{ left: `${CELL * 4}px` }}
