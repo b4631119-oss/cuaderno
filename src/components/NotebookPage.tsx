@@ -57,7 +57,6 @@ export default function NotebookPage() {
   function handleTitleKeyDown(e: React.KeyboardEvent) {
     if (e.key === "Enter") {
       e.preventDefault();
-      // После Enter — фокус переходит на текст
       contentRef.current?.focus();
     }
   }
