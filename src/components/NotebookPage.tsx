@@ -54,7 +54,6 @@ export default function NotebookPage() {
     setPages(updated);
   }
 
-  // Блокируем Enter в заголовке
   function handleTitleKeyDown(e: React.KeyboardEvent) {
     if (e.key === "Enter") {
       e.preventDefault();
