@@ -123,8 +123,6 @@ export default function NotebookPage() {
           className="absolute top-0 bottom-0 w-px bg-red-400 opacity-50 pointer-events-none"
           style={{ left: `${CELL * 4}px` }}
         />
-
-        {/* Контент */}
         <div
           className="relative z-10 min-h-full"
           style={{
