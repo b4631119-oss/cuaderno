@@ -108,7 +108,6 @@ export default function NotebookPage() {
         </div>
       </header>
 
-      {/* Лист — весь экран */}
       <div className="flex-1 relative overflow-auto bg-white">
 
         {/* Клетчатый фон */}
