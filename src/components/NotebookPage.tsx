@@ -158,8 +158,6 @@ export default function NotebookPage() {
               marginBottom: `${CELL - 2}px`,
             }}
           />
-
-          {/* Текст */}
           <div
             ref={contentRef}
             contentEditable
