@@ -49,7 +49,6 @@ export default function NotebookPage() {
 
   function handleTitleInput() {
     if (!titleRef.current) return;
-    // Запрещаем перенос строки в заголовке — Enter не работает
     const updated = [...pages];
     updated[index].title = titleRef.current.innerText.replace(/\n/g, "");
     setPages(updated);
