@@ -5,6 +5,7 @@ export interface UserPage {
   id?: string; // Теперь у каждой страницы будет свой ID документа
   title: string;
   content: string;
+  createdAt?: number; // Временная метка для сортировки
 }
 
 export interface UserProfile {
@@ -32,7 +33,7 @@ export async function saveUserProfile(
 export async function saveSinglePage(
   uid: string,
   pageId: string,
-  pageData: { title: string; content: string }
+  pageData: { title: string; content: string; createdAt?: number }
 ): Promise<void> {
   await setDoc(doc(db, "users", uid, "pages", pageId), {
     ...pageData,
@@ -52,6 +53,17 @@ export async function getUserPages(uid: string): Promise<UserPage[]> {
     } as UserPage);
   });
 
-  // Сортируем страницы по ID (page_0, page_1, page_2...), чтобы они не перемешивались
-  return pages.sort((a, b) => (a.id || "").localeCompare(b.id || ""));
+  // Сортируем страницы по createdAt (если есть), с фолбеком на ID для старых страниц
+  return pages.sort((a, b) => {
+    const timeA = a.createdAt || 0;
+    const timeB = b.createdAt || 0;
+    if (timeA !== timeB) return timeA - timeB;
+    return (a.id || "").localeCompare(b.id || "");
+  });
+}
+
+// 4. НОВАЯ: Генерация уникального ID для страницы на основе встроенных механизмов Firestore
+export function generatePageId(uid?: string): string {
+  const path = uid ? `users/${uid}/pages` : "temp";
+  return doc(collection(db, path)).id;
 }

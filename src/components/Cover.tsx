@@ -20,7 +20,8 @@ interface CoverProps {
 }
 
 export default function Cover({ onOpen }: CoverProps) {
-  const { user, profile } = useAuth();
+  const { user, profile, logout } = useAuth();
+  const [saving, setSaving] = useState(false);
   
   const [colorIdx, setColorIdx] = useState(0);
   const [showPalette, setShowPalette] = useState(false);
@@ -104,7 +105,7 @@ export default function Cover({ onOpen }: CoverProps) {
     if (fileRef.current) fileRef.current.value = "";
   }
 
-  function handleAuthSuccess(firebaseUser?: User) {
+  async function handleAuthSuccess(firebaseUser?: User) {
     const activeUser = firebaseUser || user;
     if (activeUser) {
       const hasChanges =
@@ -128,9 +129,14 @@ export default function Cover({ onOpen }: CoverProps) {
           coverImage: bgImage,
         };
         
-        saveUserProfile(activeUser.uid, updatedProfile).catch((err) => {
-          console.error("Не удалось сохранить профиль обложки в фоне:", err);
-        });
+        setSaving(true);
+        try {
+          await saveUserProfile(activeUser.uid, updatedProfile);
+        } catch (err) {
+          console.error("Не удалось сохранить профиль обложки:", err);
+        } finally {
+          setSaving(false);
+        }
       }
     }
     onOpen();
@@ -153,6 +159,35 @@ export default function Cover({ onOpen }: CoverProps) {
         )}
 
         <div className="relative z-10 w-full flex flex-col items-center">
+          {user ? (
+            <div
+              className="absolute top-0 left-0 flex items-center gap-2 bg-black/5 backdrop-blur-xs py-1.5 px-3 rounded-full text-xs md:text-sm font-medium transition-all"
+              style={{ color: textColor }}
+            >
+              <span>👤 {user.email}</span>
+              <button
+                className="hover:underline opacity-80 hover:opacity-100 transition-opacity ml-1 cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  logout();
+                }}
+              >
+                Выйти
+              </button>
+            </div>
+          ) : (
+            <button
+              className="absolute top-0 left-0 text-xs md:text-sm font-bold uppercase tracking-wider hover:scale-105 transition-transform py-2 px-4 rounded-full bg-black/5 backdrop-blur-xs border border-transparent hover:border-current cursor-pointer"
+              style={{ color: textColor }}
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowAuth(true);
+              }}
+            >
+              Войти
+            </button>
+          )}
+
           <button
             className="absolute top-0 right-0 text-2xl md:text-3xl hover:scale-110 transition-transform p-2 rounded-full bg-black/5 backdrop-blur-xs"
             style={{ color: textColor }}
@@ -289,8 +324,9 @@ export default function Cover({ onOpen }: CoverProps) {
           </div>
 
           <button
-            className="mt-20 md:mt-28 w-full max-w-[320px] md:max-w-[400px] border-l-8 border-r-2 border-y-2 rounded py-4 md:py-5 text-base md:text-lg uppercase tracking-widest font-bold hover:bg-black/10 transition-all active:scale-[0.98]"
+            className="mt-20 md:mt-28 w-full max-w-[320px] md:max-w-[400px] border-l-8 border-r-2 border-y-2 rounded py-4 md:py-5 text-base md:text-lg uppercase tracking-widest font-bold hover:bg-black/10 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ borderColor, color: textColor, textShadow }}
+            disabled={saving}
             onClick={(e) => {
               e.stopPropagation();
               if (user) {
@@ -300,7 +336,7 @@ export default function Cover({ onOpen }: CoverProps) {
               }
             }}
           >
-            Открыть тетрадь →
+            {saving ? "Сохранение..." : "Открыть тетрадь →"}
           </button>
         </div>
       </div>
@@ -309,7 +345,10 @@ export default function Cover({ onOpen }: CoverProps) {
         <AuthGate
           accentColor={color.border}
           onCancel={() => setShowAuth(false)}
-          onSuccess={handleAuthSuccess}
+          onSuccess={async (firebaseUser) => {
+            setShowAuth(false);
+            await handleAuthSuccess(firebaseUser);
+          }}
         />
       )}
     </div>

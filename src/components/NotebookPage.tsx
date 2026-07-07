@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "../context/AuthContext";
-import { saveSinglePage, getUserPages, UserPage } from "../lib/users";
+import { saveSinglePage, getUserPages, UserPage, generatePageId } from "../lib/users";
 import Cover from "../components/Cover";
 
 export default function NotebookPage() {
@@ -10,9 +10,9 @@ export default function NotebookPage() {
   const [showCover, setShowCover] = useState(false);
 
   const [index, setIndex] = useState(0);
-  const [pages, setPages] = useState<UserPage[]>([
-  { id: "page_0", title: "Страница 1", content: "" },
-]);
+  const [pages, setPages] = useState<UserPage[]>(() => [
+    { id: generatePageId(), title: "Страница 1", content: "", createdAt: Date.now() },
+  ]);
 
   const isLoadedRef = useRef(false);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -40,17 +40,24 @@ export default function NotebookPage() {
   const triggerSave = () => {
     if (!user || !isLoadedRef.current) return;
     
-    // Синхронизируем локальный стейт React
-    setPages([...pagesRef.current]);
-    
     // Берем текущую страницу
     const currentPage = pagesRef.current[index];
-    const pageId = currentPage.id || `page_${index}`;
+    if (!currentPage) return;
+
+    if (!currentPage.createdAt) {
+      currentPage.createdAt = Date.now();
+    }
+    const pageId = currentPage.id || generatePageId(user.uid);
+    currentPage.id = pageId;
+    
+    // Синхронизируем локальный стейт React
+    setPages([...pagesRef.current]);
     
     // Пушим в Firebase только её! Тяжёлый массив больше не гоняется по сети
     saveSinglePage(user.uid, pageId, {
       title: currentPage.title,
       content: currentPage.content,
+      createdAt: currentPage.createdAt,
     }).catch(console.error);
   };
 
@@ -91,18 +98,33 @@ export default function NotebookPage() {
     setIndex(newIndex);
   };
 
+  // Безопасное создание страницы с правильным вычислением индекса после сортировки
   const createNewPage = () => {
     if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
-    triggerSave(); 
+    triggerSave(); // Сохраняем текущую перед созданием новой
 
-    const nextIdx = pagesRef.current.length;
-    const newPages = [
-      ...pagesRef.current, 
-      { id: `page_${nextIdx}`, title: `Страница ${nextIdx + 1}`, content: "" }
-    ];
+    const newPageId = generatePageId(user?.uid);
+    const newPage = {
+      id: newPageId,
+      title: `Страница ${pagesRef.current.length + 1}`,
+      content: "",
+      createdAt: Date.now(),
+    };
+
+    // Добавляем и сортируем массив на клиенте точно так же, как в getUserPages на сервере
+    const newPages = [...pagesRef.current, newPage].sort((a, b) => {
+      const timeA = a.createdAt || 0;
+      const timeB = b.createdAt || 0;
+      if (timeA !== timeB) return timeA - timeB;
+      return (a.id || "").localeCompare(b.id || "");
+    });
+
+    // Находим точный новый индекс созданной страницы
+    const newIndex = newPages.findIndex((p) => p.id === newPageId);
+
     pagesRef.current = newPages;
     setPages(newPages);
-    setIndex(nextIdx);
+    setIndex(newIndex !== -1 ? newIndex : newPages.length - 1);
   };
 
   if (showCover) return <Cover onOpen={() => setShowCover(false)} />;
@@ -127,10 +149,10 @@ export default function NotebookPage() {
           <button
             onClick={() => {
               if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
-              triggerSave(); 
+              triggerSave(); // Сохраняем при выходе на обложку
               setShowCover(true);
             }}
-            className="text-xs text-neutral-500 hover:text-neutral-800 transition-colors px-2.5 py-1.5 rounded-lg hover:bg-neutral-100 border border-neutral-200 flex items-center gap-1"
+            className="text-xs text-neutral-500 hover:text-neutral-800 transition-colors px-2.5 py-1.5 rounded-lg hover:bg-neutral-100 border border-neutral-200 flex items-center gap-1 cursor-pointer"
           >
             <span>📓</span>
             <span className="hidden sm:inline">обложка</span>
@@ -141,7 +163,7 @@ export default function NotebookPage() {
               triggerSave();
               logout();
             }}
-            className="text-xs text-neutral-500 hover:text-red-500 transition-colors px-2.5 py-1.5 rounded-lg hover:bg-red-50 border border-neutral-200"
+            className="text-xs text-neutral-500 hover:text-red-500 transition-colors px-2.5 py-1.5 rounded-lg hover:bg-red-50 border border-neutral-200 cursor-pointer"
           >
             <span className="hidden sm:inline">Выйти</span>
             <span className="sm:hidden">✕</span>
@@ -225,16 +247,16 @@ export default function NotebookPage() {
           <button
             onClick={() => changePage(Math.max(0, index - 1))}
             disabled={index === 0}
-            className="px-2.5 md:px-3 py-1.5 text-xs md:text-sm rounded-lg bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="px-2.5 md:px-3 py-1.5 text-xs md:text-sm rounded-lg bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
           >←</button>
           <button
             onClick={() => changePage(Math.min(pages.length - 1, index + 1))}
             disabled={index === pages.length - 1}
-            className="px-2.5 md:px-3 py-1.5 text-xs md:text-sm rounded-lg bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="px-2.5 md:px-3 py-1.5 text-xs md:text-sm rounded-lg bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
           >→</button>
           <button
             onClick={createNewPage}
-            className="px-2.5 md:px-3 py-1.5 text-xs md:text-sm rounded-lg bg-neutral-800 text-white hover:bg-neutral-700 transition-colors"
+            className="px-2.5 md:px-3 py-1.5 text-xs md:text-sm rounded-lg bg-neutral-800 text-white hover:bg-neutral-700 transition-colors cursor-pointer"
           >
             + <span className="hidden sm:inline">страница</span>
           </button>
