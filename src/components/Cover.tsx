@@ -34,7 +34,6 @@ export default function Cover({ onOpen }: CoverProps) {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [showAuth, setShowAuth] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [loadedProfile, setLoadedProfile] = useState<UserProfile | null>(null);
 
   const color = COLORS[colorIdx];
@@ -52,8 +51,6 @@ export default function Cover({ onOpen }: CoverProps) {
   const textShadow = bgImage ? "0 1px 4px rgba(0,0,0,0.6)" : undefined;
   const borderColor = bgImage ? "rgba(255,255,255,0.7)" : color.border;
 
-  // Автоматически подгружаем профиль пользователя, если он уже вошел
-  // и решил отредактировать обложку
   useEffect(() => {
     if (!user) return;
     
@@ -66,7 +63,6 @@ export default function Cover({ onOpen }: CoverProps) {
         if (profile.coverImage) {
           setBgImage(profile.coverImage);
         } else {
-          // Восстанавливаем сохраненный ранее цвет
           const idx = COLORS.findIndex((c) => c.bg === profile.coverColorBg);
           if (idx !== -1) {
             setColorIdx(idx);
@@ -111,7 +107,8 @@ export default function Cover({ onOpen }: CoverProps) {
     if (fileRef.current) fileRef.current.value = "";
   }
 
-  async function handleAuthSuccess(firebaseUser?: User) {
+  // ОПТИМИЗИРОВАННАЯ ФУНКЦИЯ: Теперь переход мгновенный
+  function handleAuthSuccess(firebaseUser?: User) {
     const activeUser = firebaseUser || user;
     if (activeUser) {
       const hasChanges =
@@ -125,26 +122,24 @@ export default function Cover({ onOpen }: CoverProps) {
         (loadedProfile.coverImage || null) !== bgImage;
 
       if (hasChanges) {
-        setSaving(true);
-        try {
-          const updatedProfile = {
-            firstName,
-            lastName,
-            subject,
-            coverColorBg: color.bg,
-            coverColorBorder: color.border,
-            coverColorText: color.text,
-            coverImage: bgImage,
-          };
-          await saveUserProfile(activeUser.uid, updatedProfile);
-          setLoadedProfile((prev) => (prev ? { ...prev, ...updatedProfile } : updatedProfile));
-        } catch (err) {
-          console.error("Не удалось сохранить профиль обложки:", err);
-        } finally {
-          setSaving(false);
-        }
+        const updatedProfile = {
+          firstName,
+          lastName,
+          subject,
+          coverColorBg: color.bg,
+          coverColorBorder: color.border,
+          coverColorText: color.text,
+          coverImage: bgImage,
+        };
+        
+        // Отправляем в Firebase в фоне, без await!
+        saveUserProfile(activeUser.uid, updatedProfile).catch((err) => {
+          console.error("Не удалось сохранить профиль обложки в фоне:", err);
+        });
       }
     }
+    
+    // Перекидываем пользователя в тетрадь МГНОВЕННО
     onOpen();
   }
 
@@ -301,9 +296,8 @@ export default function Cover({ onOpen }: CoverProps) {
           </div>
 
           <button
-            className="mt-20 md:mt-28 w-full max-w-[320px] md:max-w-[400px] border-l-8 border-r-2 border-y-2 rounded py-4 md:py-5 text-base md:text-lg uppercase tracking-widest font-bold hover:bg-black/10 transition-all active:scale-[0.98] disabled:opacity-60"
+            className="mt-20 md:mt-28 w-full max-w-[320px] md:max-w-[400px] border-l-8 border-r-2 border-y-2 rounded py-4 md:py-5 text-base md:text-lg uppercase tracking-widest font-bold hover:bg-black/10 transition-all active:scale-[0.98]"
             style={{ borderColor, color: textColor, textShadow }}
-            disabled={saving}
             onClick={(e) => {
               e.stopPropagation();
               if (user) {
@@ -313,7 +307,7 @@ export default function Cover({ onOpen }: CoverProps) {
               }
             }}
           >
-            {saving ? "Сохраняем..." : "Открыть тетрадь →"}
+            Открыть тетрадь →
           </button>
         </div>
       </div>
