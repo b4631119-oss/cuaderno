@@ -2,57 +2,58 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "../context/AuthContext";
-import { getUserProfile, saveUserPages, UserProfile } from "../lib/users";
+import { saveSinglePage, getUserPages, UserPage } from "../lib/users";
 import Cover from "../components/Cover";
 
 export default function NotebookPage() {
-  const { user, logout } = useAuth();
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const { user, profile, logout } = useAuth();
   const [showCover, setShowCover] = useState(false);
 
   const [index, setIndex] = useState(0);
-  const [pages, setPages] = useState([
-    { title: "Страница 1", content: "" },
-  ]);
+  const [pages, setPages] = useState<UserPage[]>([
+  { id: "page_0", title: "Страница 1", content: "" },
+]);
 
   const isLoadedRef = useRef(false);
   const contentRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLDivElement>(null);
   
-  // Хранилище для актуальных страниц без вызова перерендеров
   const pagesRef = useRef(pages);
-  // Реф для таймера дебаунса автосохранения
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const CELL = 24;
 
-  // Загрузка данных при старте
+  // Загружаем страницы из подколлекции ОДИН РАЗ при старте приложения, когда зашёл юзер
   useEffect(() => {
     if (!user) return;
-    getUserProfile(user.uid).then((p) => {
-      if (p) {
-        setProfile(p);
-        if (p.pages && p.pages.length > 0) {
-          setPages(p.pages);
-          pagesRef.current = p.pages; // Синхронизируем наш архив
-        }
+
+    getUserPages(user.uid).then((dbPages) => {
+      if (dbPages.length > 0) {
+        setPages(dbPages);
+        pagesRef.current = dbPages;
       }
-      setTimeout(() => { isLoadedRef.current = true; }, 0);
-    });
+      isLoadedRef.current = true; // Разрешаем автосохранение после загрузки
+    }).catch(console.error);
   }, [user]);
 
-  // Функция для отправки данных в Firebase
+  // Функция сохранения: теперь отправляет ТОЛЬКО ТЕКУЩУЮ страницу
   const triggerSave = () => {
     if (!user || !isLoadedRef.current) return;
     
-    // Синхронизируем стейт React с архивом refs, чтобы интерфейс знал актуальные данные
+    // Синхронизируем локальный стейт React
     setPages([...pagesRef.current]);
     
-    // Сохраняем в бэкенд
-    saveUserPages(user.uid, pagesRef.current).catch(console.error);
+    // Берем текущую страницу
+    const currentPage = pagesRef.current[index];
+    const pageId = currentPage.id || `page_${index}`;
+    
+    // Пушим в Firebase только её! Тяжёлый массив больше не гоняется по сети
+    saveSinglePage(user.uid, pageId, {
+      title: currentPage.title,
+      content: currentPage.content,
+    }).catch(console.error);
   };
 
-  // Функция дебаунса: сбрасывает старый таймер и заводит новый на 1.5 сек
   const runDebounceSave = () => {
     if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
     debounceTimeoutRef.current = setTimeout(() => {
@@ -62,14 +63,12 @@ export default function NotebookPage() {
 
   function handleContentInput() {
     if (!contentRef.current) return;
-    // Пишем напрямую в архив, обходя стейт React (0 лагов!)
     pagesRef.current[index].content = contentRef.current.innerText;
     runDebounceSave();
   }
 
   function handleTitleInput() {
     if (!titleRef.current) return;
-    // Пишем напрямую в архив
     pagesRef.current[index].title = titleRef.current.innerText.replace(/\n/g, "");
     runDebounceSave();
   }
@@ -81,32 +80,29 @@ export default function NotebookPage() {
     }
   }
 
-  // Смена страницы (синхронизация текста в редакторе)
   useEffect(() => {
     if (contentRef.current) contentRef.current.innerText = pages[index]?.content ?? "";
     if (titleRef.current) titleRef.current.innerText = pages[index]?.title ?? "";
-  }, [index]);
+  }, [index, pages]);
 
-  // Хендлер для безопасного переключения индекса страницы
   const changePage = (newIndex: number) => {
-    // Если висел таймер автосохранения — убиваем его
     if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
-    
-    // Мгновенно сохраняем всё, что было набрано на старой странице
-    triggerSave();
-    
-    // Переключаем страницу
+    triggerSave(); // Мгновенно сохраняем старую страницу перед уходом
     setIndex(newIndex);
   };
 
   const createNewPage = () => {
     if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
-    triggerSave(); // Сохраняем текущую перед созданием новой
+    triggerSave(); 
 
-    const newPages = [...pagesRef.current, { title: `Страница ${pagesRef.current.length + 1}`, content: "" }];
+    const nextIdx = pagesRef.current.length;
+    const newPages = [
+      ...pagesRef.current, 
+      { id: `page_${nextIdx}`, title: `Страница ${nextIdx + 1}`, content: "" }
+    ];
     pagesRef.current = newPages;
     setPages(newPages);
-    setIndex(newPages.length - 1);
+    setIndex(nextIdx);
   };
 
   if (showCover) return <Cover onOpen={() => setShowCover(false)} />;
@@ -131,7 +127,7 @@ export default function NotebookPage() {
           <button
             onClick={() => {
               if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
-              triggerSave(); // Сохраняем при выходе на обложку
+              triggerSave(); 
               setShowCover(true);
             }}
             className="text-xs text-neutral-500 hover:text-neutral-800 transition-colors px-2.5 py-1.5 rounded-lg hover:bg-neutral-100 border border-neutral-200 flex items-center gap-1"

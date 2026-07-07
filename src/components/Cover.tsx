@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react"; 
+import { useState, useRef } from "react"; 
 import AuthGate from "../components/AuthGate";
 import { useAuth } from "../context/AuthContext";
-import { saveUserProfile, getUserProfile, UserProfile } from "../lib/users"; 
+import { saveUserProfile, UserProfile } from "../lib/users"; 
 import { User } from "firebase/auth"; 
 
 const COLORS = [
@@ -20,7 +20,8 @@ interface CoverProps {
 }
 
 export default function Cover({ onOpen }: CoverProps) {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  
   const [colorIdx, setColorIdx] = useState(0);
   const [showPalette, setShowPalette] = useState(false);
   const [subject, setSubject] = useState("");
@@ -34,7 +35,27 @@ export default function Cover({ onOpen }: CoverProps) {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [showAuth, setShowAuth] = useState(false);
-  const [loadedProfile, setLoadedProfile] = useState<UserProfile | null>(null);
+
+  // Храним ссылку на предыдущий профиль для безопасной синхронизации во время рендера
+  const [prevProfile, setPrevProfile] = useState<UserProfile | null>(null);
+
+  // Самый правильный паттерн синхронизации пропсов/контекста со стейтом по документации React
+  if (profile !== prevProfile) {
+    setPrevProfile(profile);
+    if (profile) {
+      setFirstName(profile.firstName || "");
+      setLastName(profile.lastName || "");
+      setSubject(profile.subject || "");
+      if (profile.coverImage) {
+        setBgImage(profile.coverImage);
+      } else {
+        const idx = COLORS.findIndex((c) => c.bg === profile.coverColorBg);
+        if (idx !== -1) {
+          setColorIdx(idx);
+        }
+      }
+    }
+  }
 
   const color = COLORS[colorIdx];
 
@@ -51,32 +72,6 @@ export default function Cover({ onOpen }: CoverProps) {
   const textShadow = bgImage ? "0 1px 4px rgba(0,0,0,0.6)" : undefined;
   const borderColor = bgImage ? "rgba(255,255,255,0.7)" : color.border;
 
-  useEffect(() => {
-    if (!user) return;
-    
-    let isMounted = true;
-    getUserProfile(user.uid).then((profile) => {
-      if (profile && isMounted) {
-        setFirstName(profile.firstName || "");
-        setLastName(profile.lastName || "");
-        setSubject(profile.subject || "");
-        if (profile.coverImage) {
-          setBgImage(profile.coverImage);
-        } else {
-          const idx = COLORS.findIndex((c) => c.bg === profile.coverColorBg);
-          if (idx !== -1) {
-            setColorIdx(idx);
-          }
-        }
-        setLoadedProfile(profile);
-      }
-    });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [user]);
-
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -87,6 +82,7 @@ export default function Cover({ onOpen }: CoverProps) {
     };
     reader.readAsDataURL(file);
   }
+
   function applyUrl() {
     const url = urlInput.trim();
     if (!url) return;
@@ -100,6 +96,7 @@ export default function Cover({ onOpen }: CoverProps) {
     setUrlInput("");
     setShowPalette(false);
   }
+
   function resetBg() {
     setBgImage(null);
     setUrlInput("");
@@ -107,19 +104,18 @@ export default function Cover({ onOpen }: CoverProps) {
     if (fileRef.current) fileRef.current.value = "";
   }
 
-  // ОПТИМИЗИРОВАННАЯ ФУНКЦИЯ: Теперь переход мгновенный
   function handleAuthSuccess(firebaseUser?: User) {
     const activeUser = firebaseUser || user;
     if (activeUser) {
       const hasChanges =
-        !loadedProfile ||
-        (loadedProfile.firstName || "") !== firstName ||
-        (loadedProfile.lastName || "") !== lastName ||
-        (loadedProfile.subject || "") !== subject ||
-        (loadedProfile.coverColorBg || "") !== color.bg ||
-        (loadedProfile.coverColorBorder || "") !== color.border ||
-        (loadedProfile.coverColorText || "") !== color.text ||
-        (loadedProfile.coverImage || null) !== bgImage;
+        !profile ||
+        (profile.firstName || "") !== firstName ||
+        (profile.lastName || "") !== lastName ||
+        (profile.subject || "") !== subject ||
+        (profile.coverColorBg || "") !== color.bg ||
+        (profile.coverColorBorder || "") !== color.border ||
+        (profile.coverColorText || "") !== color.text ||
+        (profile.coverImage || null) !== bgImage;
 
       if (hasChanges) {
         const updatedProfile = {
@@ -132,14 +128,11 @@ export default function Cover({ onOpen }: CoverProps) {
           coverImage: bgImage,
         };
         
-        // Отправляем в Firebase в фоне, без await!
         saveUserProfile(activeUser.uid, updatedProfile).catch((err) => {
           console.error("Не удалось сохранить профиль обложки в фоне:", err);
         });
       }
     }
-    
-    // Перекидываем пользователя в тетрадь МГНОВЕННО
     onOpen();
   }
 
@@ -219,7 +212,7 @@ export default function Cover({ onOpen }: CoverProps) {
                   className="text-sm text-left px-3 py-2 rounded-lg bg-neutral-100 hover:bg-neutral-200 transition-colors"
                   onClick={() => setShowUrlInput((v) => !v)}
                 >
-                  🔗 вставить ссылку на фото
+                  🔗 вставить ссылку на photo
                 </button>
 
                 {showUrlInput && (
