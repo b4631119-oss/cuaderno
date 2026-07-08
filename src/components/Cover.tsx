@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useRef } from "react"; 
+import { useState, useRef, useEffect } from "react";
 import AuthGate from "../components/AuthGate";
 import { useAuth } from "../context/AuthContext";
-import { saveUserProfile, UserProfile } from "../lib/users"; 
-import { User } from "firebase/auth"; 
+import { saveUserProfile, getUserProfile, UserProfile } from "../lib/users";
+import { User } from "firebase/auth";
 
 const COLORS = [
   { bg: "#8fbc5a", border: "#3B6D11", text: "#173404", label: "зелёный" },
@@ -15,131 +15,91 @@ const COLORS = [
   { bg: "#d3d1c7", border: "#5F5E5A", text: "#2C2C2A", label: "серый" },
 ];
 
-interface CoverProps {
-  onOpen: () => void;
-}
+export default function Cover({ onOpen }: { onOpen: () => void }) {
+  const { user, logout } = useAuth();
 
-export default function Cover({ onOpen }: CoverProps) {
-  const { user, profile, logout } = useAuth();
-  const [saving, setSaving] = useState(false);
-  
   const [colorIdx, setColorIdx] = useState(0);
   const [showPalette, setShowPalette] = useState(false);
   const [subject, setSubject] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-
   const [bgImage, setBgImage] = useState<string | null>(null);
-  const [urlInput, setUrlInput] = useState("");
   const [showUrlInput, setShowUrlInput] = useState(false);
-  const [urlError, setUrlError] = useState(false);
+  const [urlInput, setUrlInput] = useState("");
+  const [showAuth, setShowAuth] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [loadedProfile, setLoadedProfile] = useState<UserProfile | null>(null);
+
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const [showAuth, setShowAuth] = useState(false);
-
-  // Храним ссылку на предыдущий профиль для безопасной синхронизации во время рендера
-  const [prevProfile, setPrevProfile] = useState<UserProfile | null>(null);
-
-  // Самый правильный паттерн синхронизации пропсов/контекста со стейтом по документации React
-  if (profile !== prevProfile) {
-    setPrevProfile(profile);
-    if (profile) {
-      setFirstName(profile.firstName || "");
-      setLastName(profile.lastName || "");
-      setSubject(profile.subject || "");
-      if (profile.coverImage) {
-        setBgImage(profile.coverImage);
+  useEffect(() => {
+    if (!user) return;
+    let alive = true;
+    getUserProfile(user.uid).then((p) => {
+      if (!p || !alive) return;
+      setFirstName(p.firstName || "");
+      setLastName(p.lastName || "");
+      setSubject(p.subject || "");
+      if (p.coverImage) {
+        setBgImage(p.coverImage);
       } else {
-        const idx = COLORS.findIndex((c) => c.bg === profile.coverColorBg);
-        if (idx !== -1) {
-          setColorIdx(idx);
-        }
+        const idx = COLORS.findIndex((c) => c.bg === p.coverColorBg);
+        if (idx !== -1) setColorIdx(idx);
       }
-    }
-  }
+      setLoadedProfile(p);
+    });
+    return () => { alive = false; };
+  }, [user]);
 
   const color = COLORS[colorIdx];
-
-  const coverStyle = bgImage
-    ? {
-        backgroundImage: `url(${bgImage})`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        borderColor: "rgba(0,0,0,0.3)",
-      }
-    : { background: color.bg, borderColor: color.border };
-
   const textColor = bgImage ? "#ffffff" : color.text;
   const textShadow = bgImage ? "0 1px 4px rgba(0,0,0,0.6)" : undefined;
   const borderColor = bgImage ? "rgba(255,255,255,0.7)" : color.border;
 
-  function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      setBgImage(reader.result as string);
-      setShowPalette(false);
-    };
-    reader.readAsDataURL(file);
-  }
-
-  function applyUrl() {
-    const url = urlInput.trim();
-    if (!url) return;
-    if (!url.startsWith("http")) {
-      setUrlError(true);
-      return;
-    }
-    setBgImage(url);
-    setUrlError(false);
-    setShowUrlInput(false);
-    setUrlInput("");
-    setShowPalette(false);
-  }
-
-  function resetBg() {
-    setBgImage(null);
-    setUrlInput("");
-    setUrlError(false);
-    if (fileRef.current) fileRef.current.value = "";
-  }
+  const coverStyle = bgImage
+    ? { backgroundImage: `url(${bgImage})`, backgroundSize: "cover", backgroundPosition: "center", borderColor: "rgba(0,0,0,0.3)" }
+    : { background: color.bg, borderColor: color.border };
 
   async function handleAuthSuccess(firebaseUser?: User) {
     const activeUser = firebaseUser || user;
-    if (activeUser) {
-      const hasChanges =
-        !profile ||
-        (profile.firstName || "") !== firstName ||
-        (profile.lastName || "") !== lastName ||
-        (profile.subject || "") !== subject ||
-        (profile.coverColorBg || "") !== color.bg ||
-        (profile.coverColorBorder || "") !== color.border ||
-        (profile.coverColorText || "") !== color.text ||
-        (profile.coverImage || null) !== bgImage;
+    if (!activeUser) return;
 
-      if (hasChanges) {
-        const updatedProfile = {
-          firstName,
-          lastName,
-          subject,
+    // Сохраняем только если были изменения
+    const hasChanges =
+      !loadedProfile ||
+      (loadedProfile.firstName || "") !== firstName ||
+      (loadedProfile.lastName || "") !== lastName ||
+      (loadedProfile.subject || "") !== subject ||
+      (loadedProfile.coverColorBg || "") !== color.bg ||
+      (loadedProfile.coverImage || null) !== bgImage;
+
+    if (hasChanges) {
+      setSaving(true);
+      try {
+        const updated = {
+          firstName, lastName, subject,
           coverColorBg: color.bg,
           coverColorBorder: color.border,
           coverColorText: color.text,
           coverImage: bgImage,
         };
-        
-        setSaving(true);
-        try {
-          await saveUserProfile(activeUser.uid, updatedProfile);
-        } catch (err) {
-          console.error("Не удалось сохранить профиль обложки:", err);
-        } finally {
-          setSaving(false);
-        }
+        await saveUserProfile(activeUser.uid, updated);
+        setLoadedProfile((prev) => prev ? { ...prev, ...updated } : updated);
+      } catch (err) {
+        console.error("Ошибка сохранения профиля:", err);
+      } finally {
+        setSaving(false);
       }
     }
     onOpen();
+  }
+
+  function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => { setBgImage(reader.result as string); setShowPalette(false); };
+    reader.readAsDataURL(file);
   }
 
   return (
@@ -147,60 +107,47 @@ export default function Cover({ onOpen }: CoverProps) {
       <div
         className="relative w-full h-screen border-l-8 border-y-2 border-r-2 rounded-none flex flex-col items-center justify-center p-8 md:p-12 transition-all duration-300"
         style={coverStyle}
-        onClick={() => {
-          if (showPalette) {
-            setShowPalette(false);
-            setShowUrlInput(false);
-          }
-        }}
+        onClick={() => { if (showPalette) { setShowPalette(false); setShowUrlInput(false); } }}
       >
-        {bgImage && (
-          <div className="absolute inset-0 bg-black/30 pointer-events-none" />
-        )}
+        {bgImage && <div className="absolute inset-0 bg-black/30 pointer-events-none" />}
 
         <div className="relative z-10 w-full flex flex-col items-center">
-          {user ? (
-            <div
-              className="absolute top-0 left-0 flex items-center gap-2 bg-black/5 backdrop-blur-xs py-1.5 px-3 rounded-full text-xs md:text-sm font-medium transition-all"
-              style={{ color: textColor }}
-            >
-              <span>👤 {user.email}</span>
-              <button
-                className="hover:underline opacity-80 hover:opacity-100 transition-opacity ml-1 cursor-pointer"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  logout();
-                }}
-              >
-                Выйти
-              </button>
-            </div>
-          ) : (
-            <button
-              className="absolute top-0 left-0 text-xs md:text-sm font-bold uppercase tracking-wider hover:scale-105 transition-transform py-2 px-4 rounded-full bg-black/5 backdrop-blur-xs border border-transparent hover:border-current cursor-pointer"
-              style={{ color: textColor }}
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowAuth(true);
-              }}
-            >
-              Войти
-            </button>
-          )}
 
+          {/* Кнопка палитры */}
           <button
-            className="absolute top-0 right-0 text-2xl md:text-3xl hover:scale-110 transition-transform p-2 rounded-full bg-black/5 backdrop-blur-xs"
+            className="absolute top-0 right-0 text-2xl md:text-3xl p-2 rounded-full bg-black/5 hover:scale-110 transition-transform"
             style={{ color: textColor }}
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowPalette((p) => !p);
-              setShowUrlInput(false);
-            }}
-            aria-label="Изменить оформление обложки"
+            onClick={(e) => { e.stopPropagation(); setShowPalette((p) => !p); setShowUrlInput(false); }}
+            aria-label="Изменить оформление"
           >
             🎨
           </button>
 
+          {/* Инфо пользователя или кнопка входа */}
+          {user ? (
+            <div className="absolute top-0 left-0 flex items-center gap-2">
+              <span className="text-xs opacity-70" style={{ color: textColor, textShadow }}>
+                {user.email}
+              </span>
+              <button
+                className="text-xs underline opacity-70 hover:opacity-100 transition-opacity"
+                style={{ color: textColor }}
+                onClick={logout}
+              >
+                выйти
+              </button>
+            </div>
+          ) : (
+            <button
+              className="absolute top-0 left-0 text-xs font-bold uppercase tracking-widest opacity-70 hover:opacity-100 transition-opacity"
+              style={{ color: textColor, textShadow }}
+              onClick={() => setShowAuth(true)}
+            >
+              войти
+            </button>
+          )}
+
+          {/* Панель выбора цвета/фото */}
           {showPalette && (
             <div
               className="absolute top-14 right-0 flex flex-col gap-3 p-4 bg-white rounded-2xl shadow-xl min-w-[220px] z-20"
@@ -211,79 +158,64 @@ export default function Cover({ onOpen }: CoverProps) {
                 {COLORS.map((c, i) => (
                   <button
                     key={i}
-                    className="w-8 h-8 rounded-full border-2 transition-transform hover:scale-110"
-                    style={{
-                      background: c.bg,
-                      borderColor: i === colorIdx && !bgImage ? "#000" : "transparent",
-                    }}
-                    onClick={() => {
-                      setColorIdx(i);
-                      resetBg();
-                      setShowPalette(false);
-                    }}
+                    className="w-8 h-8 rounded-full border-2 hover:scale-110 transition-transform"
+                    style={{ background: c.bg, borderColor: i === colorIdx && !bgImage ? "#000" : "transparent" }}
+                    onClick={() => { setColorIdx(i); setBgImage(null); setShowPalette(false); }}
                     aria-label={c.label}
                   />
                 ))}
               </div>
-
               <div className="border-t border-neutral-100 pt-2 flex flex-col gap-2">
                 <p className="text-xs text-neutral-400 uppercase tracking-wider">фото</p>
-
                 <button
                   className="text-sm text-left px-3 py-2 rounded-lg bg-neutral-100 hover:bg-neutral-200 transition-colors"
                   onClick={() => fileRef.current?.click()}
                 >
                   📁 загрузить с устройства
                 </button>
-                <input
-                  ref={fileRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleFile}
-                />
-
+                <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
                 <button
                   className="text-sm text-left px-3 py-2 rounded-lg bg-neutral-100 hover:bg-neutral-200 transition-colors"
                   onClick={() => setShowUrlInput((v) => !v)}
                 >
-                  🔗 вставить ссылку на photo
+                  🔗 вставить ссылку
                 </button>
-
                 {showUrlInput && (
                   <div className="flex flex-col gap-1">
                     <input
                       type="text"
                       placeholder="https://..."
                       value={urlInput}
-                      onChange={(e) => {
-                        setUrlInput(e.target.value);
-                        setUrlError(false);
+                      onChange={(e) => setUrlInput(e.target.value)}
+                      className="text-sm px-2 py-1.5 border border-neutral-300 rounded-lg outline-none focus:border-neutral-500 text-black"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && urlInput.startsWith("http")) {
+                          setBgImage(urlInput);
+                          setUrlInput("");
+                          setShowUrlInput(false);
+                          setShowPalette(false);
+                        }
                       }}
-                      className={`text-sm px-2 py-1.5 border rounded-lg outline-none transition-colors text-black ${
-                        urlError ? "border-red-400" : "border-neutral-300 focus:border-neutral-500"
-                      }`}
-                      onKeyDown={(e) => e.key === "Enter" && applyUrl()}
                     />
-                    {urlError && (
-                      <p className="text-xs text-red-500">введи корректную ссылку</p>
-                    )}
                     <button
                       className="text-sm bg-neutral-800 text-white rounded-lg py-1.5 hover:bg-neutral-700 transition-colors"
-                      onClick={applyUrl}
+                      onClick={() => {
+                        if (urlInput.startsWith("http")) {
+                          setBgImage(urlInput);
+                          setUrlInput("");
+                          setShowUrlInput(false);
+                          setShowPalette(false);
+                        }
+                      }}
                     >
                       применить
                     </button>
                   </div>
                 )}
-
                 {bgImage && (
                   <button
                     className="text-sm text-red-500 text-left px-3 py-1 hover:underline"
-                    onClick={() => {
-                      resetBg();
-                      setShowPalette(false);
-                    }}
+                    onClick={() => { setBgImage(null); setShowPalette(false); }}
                   >
                     ✕ убрать фото
                   </button>
@@ -292,6 +224,7 @@ export default function Cover({ onOpen }: CoverProps) {
             </div>
           )}
 
+          {/* Заголовок */}
           <h1
             className="text-4xl md:text-5xl font-extrabold tracking-[8px] md:tracking-[12px] uppercase mb-20 md:mb-28 text-center mt-8"
             style={{ color: textColor, textShadow }}
@@ -299,6 +232,7 @@ export default function Cover({ onOpen }: CoverProps) {
             ТЕТРАДЬ
           </h1>
 
+          {/* Поля */}
           <div className="w-full max-w-[320px] md:max-w-[480px] flex flex-col gap-10 md:gap-12">
             {[
               { label: "для", value: subject, onChange: setSubject },
@@ -306,37 +240,28 @@ export default function Cover({ onOpen }: CoverProps) {
               { label: "фамилия", value: lastName, onChange: setLastName },
             ].map(({ label, value, onChange }) => (
               <div key={label} className="flex items-end gap-4 md:gap-6">
-                <span
-                  className="text-base md:text-lg font-semibold uppercase whitespace-nowrap"
-                  style={{ color: textColor, textShadow }}
-                >
+                <span className="text-base md:text-lg font-semibold uppercase whitespace-nowrap" style={{ color: textColor, textShadow }}>
                   {label}:
                 </span>
                 <input
                   type="text"
                   value={value}
                   onChange={(e) => onChange(e.target.value)}
-                  className="flex-1 bg-transparent border-0 border-b-2 outline-none text-xl md:text-2xl pb-1.5 md:pb-2 font-mono tracking-wide transition-all focus:border-opacity-100 border-opacity-60"
+                  className="flex-1 bg-transparent border-0 border-b-2 outline-none text-xl md:text-2xl pb-1.5 font-mono tracking-wide"
                   style={{ borderBottomColor: borderColor, color: textColor, textShadow }}
                 />
               </div>
             ))}
           </div>
 
+          {/* Кнопка открыть */}
           <button
-            className="mt-20 md:mt-28 w-full max-w-[320px] md:max-w-[400px] border-l-8 border-r-2 border-y-2 rounded py-4 md:py-5 text-base md:text-lg uppercase tracking-widest font-bold hover:bg-black/10 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="mt-20 md:mt-28 w-full max-w-[320px] md:max-w-[400px] border-l-8 border-r-2 border-y-2 rounded py-4 md:py-5 text-base md:text-lg uppercase tracking-widest font-bold hover:bg-black/10 transition-all active:scale-[0.98] disabled:opacity-60"
             style={{ borderColor, color: textColor, textShadow }}
             disabled={saving}
-            onClick={(e) => {
-              e.stopPropagation();
-              if (user) {
-                handleAuthSuccess();
-              } else {
-                setShowAuth(true);
-              }
-            }}
+            onClick={(e) => { e.stopPropagation(); user ? handleAuthSuccess() : setShowAuth(true); }}
           >
-            {saving ? "Сохранение..." : "Открыть тетрадь →"}
+            {saving ? "Сохраняем..." : "Открыть тетрадь →"}
           </button>
         </div>
       </div>
@@ -345,10 +270,7 @@ export default function Cover({ onOpen }: CoverProps) {
         <AuthGate
           accentColor={color.border}
           onCancel={() => setShowAuth(false)}
-          onSuccess={async (firebaseUser) => {
-            setShowAuth(false);
-            await handleAuthSuccess(firebaseUser);
-          }}
+          onSuccess={async (u) => { setShowAuth(false); await handleAuthSuccess(u); }}
         />
       )}
     </div>
