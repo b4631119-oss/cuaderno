@@ -1,21 +1,13 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import Cover from "../components/Cover";
 import NotebookPage from "../components/NotebookPage";
 
 export default function Home() {
-  const { user, loading } = useAuth();
+  const { loading } = useAuth();
   const [opened, setOpened] = useState(false);
-  const isFirstLoad = useRef(true);
-
-  useEffect(() => {
-    if (!loading && user && isFirstLoad.current) {
-      setOpened(true);
-      isFirstLoad.current = false;
-    }
-  }, [user, loading]);
 
   if (loading) {
     return (
@@ -24,8 +16,7 @@ export default function Home() {
       </div>
     );
   }
-  
-  if (opened) return <NotebookPage />;
 
+  if (opened) return <NotebookPage />;
   return <Cover onOpen={() => setOpened(true)} />;
 }

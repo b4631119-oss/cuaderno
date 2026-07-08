@@ -15,20 +15,19 @@ const COLORS = [
   { bg: "#d3d1c7", border: "#5F5E5A", text: "#2C2C2A", label: "серый" },
 ];
 
-// Локальные изменения пользователя поверх профиля
-interface LocalOverrides {
-  firstName?: string;
-  lastName?: string;
-  subject?: string;
-  colorIdx?: number;
-  bgImage?: string | null;
-}
-
 export default function Cover({ onOpen }: { onOpen: () => void }) {
-  const { user, profile, logout } = useAuth();
+  const { user, profile, loading, logout } = useAuth(); // ✅ Добавили logout
 
-  // Только то что пользователь изменил руками — не дублируем весь профиль
-  const [overrides, setOverrides] = useState<LocalOverrides>({});
+  // Ждем пока профиль загрузится
+  const profileLoading = !!user && loading;
+
+  // Локальные изменения — null значит "не трогали, бери из профиля"
+  const [localColorIdx, setLocalColorIdx] = useState<number | null>(null);
+  const [localFirstName, setLocalFirstName] = useState<string | null>(null);
+  const [localLastName, setLocalLastName] = useState<string | null>(null);
+  const [localSubject, setLocalSubject] = useState<string | null>(null);
+  const [localBgImage, setLocalBgImage] = useState<string | null | undefined>(undefined); // undefined = не трогали
+
   const [showPalette, setShowPalette] = useState(false);
   const [showUrlInput, setShowUrlInput] = useState(false);
   const [urlInput, setUrlInput] = useState("");
@@ -37,18 +36,18 @@ export default function Cover({ onOpen }: { onOpen: () => void }) {
 
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // Финальные значения = то что в профиле + локальные изменения сверху
+  // Финальные значения: сначала локальные, потом из профиля
   const profileColorIdx = profile
     ? Math.max(0, COLORS.findIndex((c) => c.bg === profile.coverColorBg))
     : 0;
 
-  const colorIdx = overrides.colorIdx ?? profileColorIdx;
-  const firstName = overrides.firstName ?? profile?.firstName ?? "";
-  const lastName = overrides.lastName ?? profile?.lastName ?? "";
-  const subject = overrides.subject ?? profile?.subject ?? "";
-  const bgImage = "bgImage" in overrides
-    ? overrides.bgImage ?? null
-    : profile?.coverImage ?? null;
+  const colorIdx = localColorIdx ?? profileColorIdx;
+  const firstName = localFirstName ?? profile?.firstName ?? "";
+  const lastName = localLastName ?? profile?.lastName ?? "";
+  const subject = localSubject ?? profile?.subject ?? "";
+  
+  // bgImage: undefined значит бери из профиля, null значит убрали, string значит установили
+  const bgImage = localBgImage !== undefined ? localBgImage : (profile?.coverImage ?? null);
 
   const color = COLORS[colorIdx];
   const textColor = bgImage ? "#ffffff" : color.text;
@@ -58,10 +57,6 @@ export default function Cover({ onOpen }: { onOpen: () => void }) {
   const coverStyle = bgImage
     ? { backgroundImage: `url(${bgImage})`, backgroundSize: "cover", backgroundPosition: "center", borderColor: "rgba(0,0,0,0.3)" }
     : { background: color.bg, borderColor: color.border };
-
-  function set<K extends keyof LocalOverrides>(key: K, value: LocalOverrides[K]) {
-    setOverrides((prev) => ({ ...prev, [key]: value }));
-  }
 
   async function handleAuthSuccess(firebaseUser?: User) {
     const activeUser = firebaseUser || user;
@@ -87,8 +82,17 @@ export default function Cover({ onOpen }: { onOpen: () => void }) {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => { set("bgImage", reader.result as string); setShowPalette(false); };
+    reader.onload = () => { setLocalBgImage(reader.result as string); setShowPalette(false); };
     reader.readAsDataURL(file);
+  }
+
+  // Показываем загрузку только если юзер залогинен и профиль еще не пришел
+  if (profileLoading) {
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center bg-neutral-200">
+        <p className="text-neutral-400 text-sm">загрузка данных...</p>
+      </div>
+    );
   }
 
   return (
@@ -149,7 +153,7 @@ export default function Cover({ onOpen }: { onOpen: () => void }) {
                     key={i}
                     className="w-8 h-8 rounded-full border-2 hover:scale-110 transition-transform"
                     style={{ background: c.bg, borderColor: i === colorIdx && !bgImage ? "#000" : "transparent" }}
-                    onClick={() => { set("colorIdx", i); set("bgImage", null); setShowPalette(false); }}
+                    onClick={() => { setLocalColorIdx(i); setLocalBgImage(null); setShowPalette(false); }}
                     aria-label={c.label}
                   />
                 ))}
@@ -179,7 +183,7 @@ export default function Cover({ onOpen }: { onOpen: () => void }) {
                       className="text-sm px-2 py-1.5 border border-neutral-300 rounded-lg outline-none focus:border-neutral-500 text-black"
                       onKeyDown={(e) => {
                         if (e.key === "Enter" && urlInput.startsWith("http")) {
-                          set("bgImage", urlInput); setUrlInput(""); setShowUrlInput(false); setShowPalette(false);
+                          setLocalBgImage(urlInput); setUrlInput(""); setShowUrlInput(false); setShowPalette(false);
                         }
                       }}
                     />
@@ -187,7 +191,7 @@ export default function Cover({ onOpen }: { onOpen: () => void }) {
                       className="text-sm bg-neutral-800 text-white rounded-lg py-1.5 hover:bg-neutral-700 transition-colors"
                       onClick={() => {
                         if (urlInput.startsWith("http")) {
-                          set("bgImage", urlInput); setUrlInput(""); setShowUrlInput(false); setShowPalette(false);
+                          setLocalBgImage(urlInput); setUrlInput(""); setShowUrlInput(false); setShowPalette(false);
                         }
                       }}
                     >
@@ -198,7 +202,7 @@ export default function Cover({ onOpen }: { onOpen: () => void }) {
                 {bgImage && (
                   <button
                     className="text-sm text-red-500 text-left px-3 py-1 hover:underline"
-                    onClick={() => { set("bgImage", null); setShowPalette(false); }}
+                    onClick={() => { setLocalBgImage(null); setShowPalette(false); }}
                   >
                     ✕ убрать фото
                   </button>
@@ -218,10 +222,10 @@ export default function Cover({ onOpen }: { onOpen: () => void }) {
           {/* Поля */}
           <div className="w-full max-w-[320px] md:max-w-[480px] flex flex-col gap-10 md:gap-12">
             {[
-              { label: "для", value: subject, key: "subject" as const },
-              { label: "имя", value: firstName, key: "firstName" as const },
-              { label: "фамилия", value: lastName, key: "lastName" as const },
-            ].map(({ label, value, key }) => (
+              { label: "для", value: subject, setter: setLocalSubject },
+              { label: "имя", value: firstName, setter: setLocalFirstName },
+              { label: "фамилия", value: lastName, setter: setLocalLastName },
+            ].map(({ label, value, setter }) => (
               <div key={label} className="flex items-end gap-4 md:gap-6">
                 <span className="text-base md:text-lg font-semibold uppercase whitespace-nowrap" style={{ color: textColor, textShadow }}>
                   {label}:
@@ -229,7 +233,7 @@ export default function Cover({ onOpen }: { onOpen: () => void }) {
                 <input
                   type="text"
                   value={value}
-                  onChange={(e) => set(key, e.target.value)}
+                  onChange={(e) => setter(e.target.value)}
                   className="flex-1 bg-transparent border-0 border-b-2 outline-none text-xl md:text-2xl pb-1.5 font-mono tracking-wide"
                   style={{ borderBottomColor: borderColor, color: textColor, textShadow }}
                 />

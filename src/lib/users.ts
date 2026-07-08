@@ -18,7 +18,6 @@ export interface UserProfile {
   coverImage: string | null;
 }
 
-// Сохранение профиля обложки
 export async function saveUserProfile(
   uid: string,
   profile: UserProfile
